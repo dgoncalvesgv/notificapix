@@ -1,0 +1,23 @@
+{
+  "id": "evt_123",
+  "type": "customer.subscription.created",
+  "data": {
+    "object": {
+      "id": "sub_123",
+      "customer": "cus_123",
+      "metadata": {
+        "organizationId": "00000000-0000-0000-0000-000000000001",
+        "plan": "Pro"
+      },
+      "items": {
+        "data": [
+          {
+            "price": {
+              "id": "price_pro_mock"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

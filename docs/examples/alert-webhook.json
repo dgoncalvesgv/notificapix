@@ -1,0 +1,8 @@
+{
+  "txId": "TX12345",
+  "amount": 245.9,
+  "payerName": "Empresa XPTO",
+  "payerKey": "pagador@pix.com.br",
+  "occurredAt": "2024-05-16T12:34:00Z",
+  "signatureHeader": "X-NotificaPix-Signature: 46A86F..."
+}
