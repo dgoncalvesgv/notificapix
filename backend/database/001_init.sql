@@ -135,6 +135,30 @@ CREATE TABLE IF NOT EXISTS ApiKeys (
     CONSTRAINT FK_ApiKeys_Org FOREIGN KEY (OrganizationId) REFERENCES Organizations (Id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS BankApiIntegrations (
+    Id CHAR(36) NOT NULL,
+    CreatedAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    UpdatedAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    OrganizationId CHAR(36) NOT NULL,
+    Bank VARCHAR(64) NOT NULL,
+    SandboxClientId VARCHAR(255),
+    SandboxClientSecret TEXT,
+    ProductionClientId VARCHAR(255),
+    ProductionClientSecret TEXT,
+    CertificateFileName VARCHAR(255),
+    CertificatePassword VARCHAR(255),
+    CertificateBase64 LONGTEXT,
+    ProductionEnabled TINYINT(1) NOT NULL DEFAULT 0,
+    IsTested TINYINT(1) NOT NULL DEFAULT 0,
+    LastTestedAt DATETIME(6) NULL,
+    ServiceUrl VARCHAR(512),
+    ApiKey VARCHAR(64),
+    AccountIdentifier VARCHAR(64),
+    PRIMARY KEY (Id),
+    UNIQUE KEY IX_BankApiIntegrations_OrgBank (OrganizationId, Bank),
+    CONSTRAINT FK_BankApiIntegrations_Org FOREIGN KEY (OrganizationId) REFERENCES Organizations (Id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS AuditLogs (
     Id CHAR(36) NOT NULL,
     CreatedAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),

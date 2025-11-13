@@ -13,7 +13,10 @@ import type {
   OrganizationDto,
   BankConnectionDto,
   UsageResponse,
-  ApiKeyCreatedResponse
+  ApiKeyCreatedResponse,
+  BankIntegrationStatusDto,
+  ItauIntegrationPayload,
+  BankSyncResultDto
 } from "./types";
 
 const api = axios.create({
@@ -42,7 +45,8 @@ export const dashboardApi = {
 };
 
 export const transactionsApi = {
-  list: (payload: Record<string, unknown>) => api.post<ApiResponse<PagedResult<PixTransactionDto>>>("/transactions/list", payload)
+  list: (payload: Record<string, unknown>) => api.post<ApiResponse<PagedResult<PixTransactionDto>>>("/transactions/list", payload),
+  syncBanks: () => api.post<ApiResponse<BankSyncResultDto>>("/transactions/sync-banks", {})
 };
 
 export const alertsApi = {
@@ -73,7 +77,11 @@ export const orgApi = {
 export const bankApi = {
   list: () => api.get<ApiResponse<BankConnectionDto[]>>("/bank/connections/list"),
   connect: () => api.post<ApiResponse<string>>("/bank/connect/init", {}),
-  revoke: (connectionId: string) => api.post<ApiResponse<string>>("/bank/connections/revoke", { connectionId })
+  revoke: (connectionId: string) => api.post<ApiResponse<string>>("/bank/connections/revoke", { connectionId }),
+  getItauIntegration: () => api.get<ApiResponse<BankIntegrationStatusDto>>("/bank/api/itau"),
+  saveItauIntegration: (payload: ItauIntegrationPayload) => api.post<ApiResponse<BankIntegrationStatusDto>>("/bank/api/itau", payload),
+  testItauIntegration: (payload: { useProduction?: boolean }) =>
+    api.post<ApiResponse<BankIntegrationStatusDto>>("/bank/api/itau/test", payload)
 };
 
 export const apiKeysApi = {

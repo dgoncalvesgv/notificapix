@@ -43,6 +43,7 @@ public static class ServiceCollectionExtensions
        services.AddScoped<ICurrentUserContext, CurrentUserContext>();
         services.AddScoped<IEmailSender, FakeEmailSender>();
         services.AddHttpClient("webhooks");
+        services.AddHttpClient("bank-sync");
         services.AddScoped<IWebhookDispatcher, WebhookDispatcher>();
         services.AddScoped<IUsageService, UsageService>();
         services.AddScoped<IStripeService, StripeService>();

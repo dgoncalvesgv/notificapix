@@ -115,3 +115,43 @@ export type AuditLogDto = {
   dataJson: string;
   createdAt: string;
 };
+
+export type BankIntegrationStatusDto = {
+  configured: boolean;
+  updatedAt?: string;
+  integrationId?: string;
+  bank?: string;
+  createdAt?: string;
+  productionEnabled?: boolean;
+  lastTestedAt?: string;
+  serviceUrl?: string;
+  apiKey?: string;
+  accountIdentifier?: string;
+  sandboxClientId?: string;
+  sandboxClientSecret?: string;
+  productionClientId?: string;
+  productionClientSecret?: string;
+  certificatePassword?: string;
+  certificateFileName?: string;
+  hasCertificate?: boolean;
+};
+
+export type ItauIntegrationPayload = {
+  sandboxClientId: string;
+  sandboxClientSecret: string;
+  productionClientId: string;
+  productionClientSecret: string;
+  certificatePassword: string;
+  certificateFileName: string;
+  certificateBase64: string;
+  productionEnabled: boolean;
+  serviceUrl: string;
+  apiKey: string;
+  accountIdentifier: string;
+};
+
+export type BankSyncResultDto = {
+  integrationsProcessed: number;
+  transactionsImported: number;
+  message: string;
+};

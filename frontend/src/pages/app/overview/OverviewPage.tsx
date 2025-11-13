@@ -5,6 +5,7 @@ import { dashboardApi, transactionsApi } from "../../../lib/api/client";
 import type { OverviewMetricsResponse, PixTransactionDto } from "../../../lib/api/types";
 import { Loader } from "../../../components/Loader";
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, BarChart, Bar } from "recharts";
+const currencyFormatter = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 export const OverviewPage = () => {
   const [data, setData] = useState<OverviewMetricsResponse>();
@@ -79,16 +80,16 @@ export const OverviewPage = () => {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Overview</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <MetricCard label="PIX hoje" value={`R$ ${data?.todayTotal?.toFixed(2) ?? "0,00"}`} />
-        <MetricCard label="Últimos 7 dias" value={`R$ ${data?.last7DaysTotal?.toFixed(2) ?? "0,00"}`} />
-        <MetricCard label="Últimos 30 dias" value={`R$ ${data?.last30DaysTotal?.toFixed(2) ?? "0,00"}`} />
+        <MetricCard label="PIX hoje" value={data?.todayTotal ?? 0} isCurrency />
+        <MetricCard label="Últimos 7 dias" value={data?.last7DaysTotal ?? 0} isCurrency />
+        <MetricCard label="Últimos 30 dias" value={data?.last30DaysTotal ?? 0} isCurrency />
       </div>
       <section>
         <h2 className="font-semibold mb-2">Últimos PIX</h2>
         <DataTable
           data={data?.recentTransactions ?? []}
           columns={[
-            { header: "Valor", accessor: (row) => `R$ ${row.amount.toFixed(2)}` },
+            { header: "Valor", accessor: (row) => currencyFormatter.format(row.amount) },
             { header: "Pagador", accessor: (row) => row.payerName },
             { header: "Data", accessor: (row) => new Date(row.occurredAt).toLocaleString() }
           ]}
@@ -102,8 +103,8 @@ export const OverviewPage = () => {
               <LineChart data={todaySeries}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="hour" tick={{ fontSize: 12 }} />
-                <YAxis tickFormatter={(value) => `R$ ${value.toFixed(0)}`} />
-                <Tooltip formatter={(value: number) => `R$ ${value.toFixed(2)}`} />
+                <YAxis tickFormatter={(value) => currencyFormatter.format(value)} />
+                <Tooltip formatter={(value: number) => currencyFormatter.format(value)} />
                 <Line type="monotone" dataKey="total" stroke="#2563eb" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -116,8 +117,8 @@ export const OverviewPage = () => {
               <BarChart data={monthSeries}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                <YAxis tickFormatter={(value) => `R$ ${value.toFixed(0)}`} />
-                <Tooltip formatter={(value: number) => `R$ ${value.toFixed(2)}`} />
+                <YAxis tickFormatter={(value) => currencyFormatter.format(value)} />
+                <Tooltip formatter={(value: number) => currencyFormatter.format(value)} />
                 <Bar dataKey="total" fill="#10b981" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
