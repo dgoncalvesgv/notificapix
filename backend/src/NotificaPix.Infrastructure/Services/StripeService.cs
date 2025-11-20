@@ -4,10 +4,10 @@ using Microsoft.Extensions.Logging;
 using NotificaPix.Core.Abstractions.Services;
 using NotificaPix.Core.Contracts.Requests;
 using NotificaPix.Core.Contracts.Responses;
+using NotificaPix.Core.Domain.Entities;
 using NotificaPix.Core.Domain.Enums;
 using NotificaPix.Infrastructure.Persistence;
 using Stripe;
-using Stripe.Checkout;
 
 namespace NotificaPix.Infrastructure.Services;
 
@@ -25,46 +25,60 @@ public class StripeService : IStripeService
         StripeConfiguration.ApiKey = configuration["STRIPE_API_KEY"];
     }
 
-    public async Task<BillingSessionResponse> CreateCheckoutSessionAsync(Guid organizationId, CreateCheckoutSessionRequest request, CancellationToken cancellationToken)
+    public async Task<StripeSubscriptionResponse> CreateSubscriptionAsync(Guid organizationId, CreateCheckoutSessionRequest request, CancellationToken cancellationToken)
     {
         var organization = await _context.Organizations.FirstAsync(o => o.Id == organizationId, cancellationToken);
-        var successUrl = _configuration["CUSTOMER_PORTAL_RETURN_URL"] ?? "http://localhost:5173/app/billing";
         var priceId = ResolvePriceId(request.Plan);
 
         if (string.IsNullOrWhiteSpace(StripeConfiguration.ApiKey))
         {
-            _logger.LogWarning("Stripe API key not configured. Returning mock checkout URL.");
-            return new BillingSessionResponse($"https://stripe.com/mock-checkout/{request.Plan.ToString().ToLowerInvariant()}");
+            _logger.LogWarning("Stripe API key not configured. Returning mock client secret.");
+            return new StripeSubscriptionResponse($"pi_mock_{Guid.NewGuid():N}_secret_{Guid.NewGuid():N}", $"sub_mock_{Guid.NewGuid():N}");
         }
 
-        var options = new SessionCreateOptions
+        if (string.IsNullOrWhiteSpace(priceId))
         {
-            Mode = "subscription",
-            SuccessUrl = successUrl,
-            CancelUrl = successUrl,
-            ClientReferenceId = organization.Id.ToString(),
-            Customer = organization.StripeCustomerId,
-            SubscriptionData = new SessionSubscriptionDataOptions
+            throw new InvalidOperationException("Price ID not configured for the selected plan.");
+        }
+
+        var customerId = await EnsureStripeCustomerAsync(organization, cancellationToken);
+
+        var options = new SubscriptionCreateOptions
+        {
+            Customer = customerId,
+            Items = new List<SubscriptionItemOptions>
             {
-                Metadata = new Dictionary<string, string>
-                {
-                    ["organizationId"] = organization.Id.ToString(),
-                    ["plan"] = request.Plan.ToString()
-                }
+                new() { Price = priceId }
             },
-            LineItems = new List<SessionLineItemOptions>
+            PaymentBehavior = "default_incomplete",
+            PaymentSettings = new SubscriptionPaymentSettingsOptions
             {
-                new()
-                {
-                    Price = priceId,
-                    Quantity = 1
-                }
+                SaveDefaultPaymentMethod = "on_subscription"
+            },
+            Expand = new List<string>
+            {
+                "latest_invoice.payment_intent"
+            },
+            Metadata = new Dictionary<string, string>
+            {
+                ["organizationId"] = organization.Id.ToString(),
+                ["plan"] = request.Plan.ToString()
             }
         };
 
-        var service = new SessionService();
-        var session = await service.CreateAsync(options, cancellationToken: cancellationToken);
-        return new BillingSessionResponse(session.Url);
+        var service = new SubscriptionService();
+        var subscription = await service.CreateAsync(options, cancellationToken: cancellationToken);
+        var clientSecret = subscription.LatestInvoice?.PaymentIntent?.ClientSecret;
+        if (string.IsNullOrWhiteSpace(clientSecret))
+        {
+            throw new InvalidOperationException("Stripe não retornou client_secret para o PaymentIntent.");
+        }
+
+        organization.StripeSubscriptionId = subscription.Id;
+        organization.StripePriceId = priceId;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new StripeSubscriptionResponse(clientSecret, subscription.Id);
     }
 
     public async Task<BillingSessionResponse> CreatePortalSessionAsync(Guid organizationId, CancellationToken cancellationToken)
@@ -146,6 +160,36 @@ public class StripeService : IStripeService
         organization.StripeSubscriptionId = subscription.Id;
         organization.StripeCustomerId = subscription.CustomerId;
         await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<string> EnsureStripeCustomerAsync(Organization organization, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(organization.StripeCustomerId))
+        {
+            return organization.StripeCustomerId!;
+        }
+
+        if (string.IsNullOrWhiteSpace(StripeConfiguration.ApiKey))
+        {
+            organization.StripeCustomerId = $"cus_mock_{organization.Id:N}";
+            await _context.SaveChangesAsync(cancellationToken);
+            return organization.StripeCustomerId;
+        }
+
+        var customerService = new CustomerService();
+        var options = new CustomerCreateOptions
+        {
+            Email = organization.BillingEmail,
+            Name = organization.Name,
+            Metadata = new Dictionary<string, string>
+            {
+                ["organizationId"] = organization.Id.ToString()
+            }
+        };
+        var customer = await customerService.CreateAsync(options, cancellationToken: cancellationToken);
+        organization.StripeCustomerId = customer.Id;
+        await _context.SaveChangesAsync(cancellationToken);
+        return customer.Id;
     }
 
     private async Task DowngradeOrganizationAsync(Subscription subscription, CancellationToken cancellationToken)

@@ -94,6 +94,11 @@ export type BillingSessionResponse = {
   url: string;
 };
 
+export type StripeSubscriptionResponse = {
+  clientSecret: string;
+  subscriptionId: string;
+};
+
 export type OverviewMetricsResponse = {
   todayTotal: number;
   last7DaysTotal: number;

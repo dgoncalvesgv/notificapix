@@ -16,7 +16,8 @@ import type {
   ApiKeyCreatedResponse,
   BankIntegrationStatusDto,
   ItauIntegrationPayload,
-  BankSyncResultDto
+  BankSyncResultDto,
+  StripeSubscriptionResponse
 } from "./types";
 
 const api = axios.create({
@@ -66,7 +67,7 @@ export const teamApi = {
 };
 
 export const billingApi = {
-  checkout: (payload: { plan: string }) => api.post<ApiResponse<BillingSessionResponse>>("/billing/checkout-session", payload),
+  checkout: (payload: { plan: string }) => api.post<ApiResponse<StripeSubscriptionResponse>>("/billing/checkout-session", payload),
   portal: () => api.post<ApiResponse<BillingSessionResponse>>("/billing/portal")
 };
 

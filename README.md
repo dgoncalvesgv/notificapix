@@ -111,6 +111,7 @@ docker-compose up --build
 - A API lê os endpoints do Itaú via `ItauPix` em `appsettings` (sandbox já aponta para o domínio público do DevPortal). Para sobrescrever via ambiente, use:  
   `ItauPix__SandboxBaseUrl`, `ItauPix__ProductionBaseUrl`, `ItauPix__SandboxOAuthUrl`, `ItauPix__ProductionOAuthUrl`.  
   O front consome `VITE_ITAU_WEBHOOK_URL`, que deve apontar para `/integrations/itau/webhook`.
+- Stripe: configure `STRIPE_API_KEY` (secret key), `STRIPE_WEBHOOK_SECRET` e `VITE_STRIPE_PUBLISHABLE_KEY` (publishable key usada pelo front). IDs dos planos vão em `STRIPE_PRICE_*`.
 - Cadastre `client_id`, `client_secret`, `API Key (x-itau-apikey)`, `id_conta` e o `.pfx` diretamente em `/app/bank-connections`.
 - Certificados devem ser enviados pelo modal (o backend armazena em Base64 criptografado no banco). Em produção o mesmo certificado é usado automaticamente para mutual TLS.
 

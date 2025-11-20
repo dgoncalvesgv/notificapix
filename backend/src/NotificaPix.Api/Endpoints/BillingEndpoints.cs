@@ -20,14 +20,14 @@ public static class BillingEndpoints
     }
 
     [Authorize(Policy = "OrgAdmin")]
-    private static async Task<Ok<ApiResponse<BillingSessionResponse>>> CreateCheckoutSessionAsync(
+    private static async Task<Ok<ApiResponse<StripeSubscriptionResponse>>> CreateCheckoutSessionAsync(
         CreateCheckoutSessionRequest request,
         ICurrentUserContext currentUser,
         IStripeService stripeService,
         CancellationToken cancellationToken)
     {
-        var response = await stripeService.CreateCheckoutSessionAsync(currentUser.OrganizationId, request, cancellationToken);
-        return TypedResults.Ok(ApiResponse<BillingSessionResponse>.Ok(response));
+        var response = await stripeService.CreateSubscriptionAsync(currentUser.OrganizationId, request, cancellationToken);
+        return TypedResults.Ok(ApiResponse<StripeSubscriptionResponse>.Ok(response));
     }
 
     [Authorize(Policy = "OrgAdmin")]

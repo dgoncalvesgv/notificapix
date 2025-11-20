@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text;
 using System.Text.Json.Serialization;
 using FluentValidation;
@@ -9,6 +10,44 @@ using NotificaPix.Api.Validation;
 using NotificaPix.Core.Abstractions.Services;
 using NotificaPix.Infrastructure.Extensions;
 using Serilog;
+
+static void LoadEnvFile()
+{
+    var current = new DirectoryInfo(Directory.GetCurrentDirectory());
+    while (current is not null)
+    {
+        var candidate = Path.Combine(current.FullName, ".env");
+        if (!File.Exists(candidate))
+        {
+            current = current.Parent;
+            continue;
+        }
+
+        foreach (var line in File.ReadAllLines(candidate))
+        {
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
+            {
+                continue;
+            }
+
+            var separatorIndex = line.IndexOf('=');
+            if (separatorIndex <= 0)
+            {
+                continue;
+            }
+
+            var key = line[..separatorIndex].Trim();
+            var value = line[(separatorIndex + 1)..].Trim();
+            if (!string.IsNullOrWhiteSpace(key) && value is not null)
+            {
+                Environment.SetEnvironmentVariable(key, value);
+            }
+        }
+        break;
+    }
+}
+
+LoadEnvFile();
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables();
