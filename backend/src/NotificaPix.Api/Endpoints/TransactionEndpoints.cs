@@ -11,7 +11,9 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NotificaPix.Api.Infrastructure;
 using NotificaPix.Core.Abstractions.Security;
+using NotificaPix.Core.Abstractions.Services;
 using NotificaPix.Core.Contracts.Common;
 using NotificaPix.Core.Contracts.Requests;
 using NotificaPix.Core.Contracts.Responses;
@@ -102,6 +104,7 @@ public static class TransactionEndpoints
         ICurrentUserContext currentUser,
         NotificaPixDbContext context,
         ILoggerFactory loggerFactory,
+        IItauPixService itauPixService,
         IHttpClientFactory httpClientFactory,
         CancellationToken cancellationToken)
     {
@@ -123,6 +126,18 @@ public static class TransactionEndpoints
 
         foreach (var integration in concludedIntegrations)
         {
+            if (IsItauIntegration(integration))
+            {
+                var (processed, imported, message) = await SyncItauIntegrationAsync(integration, context, itauPixService, logger, cancellationToken);
+                processedIntegrations += processed;
+                importedTransactions += imported;
+                if (!string.IsNullOrWhiteSpace(message))
+                {
+                    messages.Add(message);
+                }
+                continue;
+            }
+
             if (string.IsNullOrWhiteSpace(integration.ServiceUrl))
             {
                 logger.LogWarning("Integração {IntegrationId} sem ServiceUrl configurada.", integration.Id);
@@ -149,28 +164,8 @@ public static class TransactionEndpoints
                     integration.ServiceUrl,
                     executionRequest.Environment);
 
-                string? accessToken = null;
-                if (integration.Bank.Equals("Itau", StringComparison.OrdinalIgnoreCase))
-                {
-                    accessToken = await RequestItauAccessTokenAsync(executionRequest, httpClientFactory, logger, cancellationToken);
-                    if (string.IsNullOrWhiteSpace(accessToken))
-                    {
-                        messages.Add($"{integration.Bank}: falha ao obter token OAuth.");
-                        continue;
-                    }
-                }
-
                 var requestUrl = BuildSyncRequestUrl(integration.ServiceUrl!, executionRequest);
                 using var requestMessage = new HttpRequestMessage(HttpMethod.Get, requestUrl);
-                if (!string.IsNullOrWhiteSpace(accessToken))
-                {
-                    requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                    if (!string.IsNullOrWhiteSpace(executionRequest.ApiKey))
-                    {
-                        requestMessage.Headers.TryAddWithoutValidation("x-itau-apikey", executionRequest.ApiKey);
-                    }
-                    requestMessage.Headers.TryAddWithoutValidation("x-itau-correlationID", Guid.NewGuid().ToString());
-                }
 
                 var response = await httpClient.SendAsync(requestMessage, cancellationToken);
 
@@ -387,4 +382,93 @@ public static class TransactionEndpoints
         [property: JsonPropertyName("access_token")] string AccessToken,
         [property: JsonPropertyName("token_type")] string TokenType,
         [property: JsonPropertyName("expires_in")] int ExpiresIn);
+
+    private static bool IsItauIntegration(BankApiIntegration integration) =>
+        integration.Bank.Equals("Itau", StringComparison.OrdinalIgnoreCase);
+
+    private static async Task<(int Processed, int Imported, string Message)> SyncItauIntegrationAsync(
+        BankApiIntegration integration,
+        NotificaPixDbContext context,
+        IItauPixService itauPixService,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var from = await ResolveItauSyncStartAsync(context, integration.OrganizationId, cancellationToken);
+            var to = DateTime.UtcNow;
+            var remoteTransactions = await FetchItauTransactionsWindowedAsync(integration, itauPixService, from, to, cancellationToken);
+            if (remoteTransactions.Count == 0)
+            {
+                return (1, 0, $"{integration.Bank}: nenhum lançamento no período.");
+            }
+
+            var upsertResult = await PixTransactionUpserter.UpsertAsync(context, integration.OrganizationId, remoteTransactions, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var message = upsertResult.Total == 0
+                ? $"{integration.Bank}: nenhuma transação nova."
+                : $"{integration.Bank}: {upsertResult.Inserted} novas, {upsertResult.Updated} atualizadas.";
+            return (1, upsertResult.Total, message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "Integração Itaú {IntegrationId} com configuração inválida.", integration.Id);
+            return (0, 0, $"{integration.Bank}: configuração incompleta ({ex.Message}).");
+        }
+    }
+
+    private static async Task<IReadOnlyCollection<PixTransaction>> FetchItauTransactionsWindowedAsync(
+        BankApiIntegration integration,
+        IItauPixService itauPixService,
+        DateTime from,
+        DateTime to,
+        CancellationToken cancellationToken)
+    {
+        var windowStart = from;
+        var aggregated = new List<PixTransaction>();
+        while (windowStart < to)
+        {
+            var windowEnd = windowStart.AddHours(24);
+            if (windowEnd > to)
+            {
+                windowEnd = to;
+            }
+
+            var batch = await itauPixService.FetchTransactionsAsync(integration, windowStart, windowEnd, cancellationToken);
+            if (batch.Count > 0)
+            {
+                aggregated.AddRange(batch);
+            }
+
+            if (windowEnd == to)
+            {
+                break;
+            }
+
+            windowStart = windowEnd;
+        }
+
+        return aggregated;
+    }
+
+    private static async Task<DateTime> ResolveItauSyncStartAsync(
+        NotificaPixDbContext context,
+        Guid organizationId,
+        CancellationToken cancellationToken)
+    {
+        var lastTransaction = await context.PixTransactions
+            .Where(t => t.OrganizationId == organizationId)
+            .OrderByDescending(t => t.OccurredAt)
+            .Select(t => (DateTime?)t.OccurredAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (!lastTransaction.HasValue)
+        {
+            return DateTime.UtcNow.AddDays(-7);
+        }
+
+        return lastTransaction.Value.AddMinutes(-5);
+    }
+
 }

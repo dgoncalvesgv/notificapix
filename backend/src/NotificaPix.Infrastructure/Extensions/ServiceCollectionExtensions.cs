@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NotificaPix.Core.Abstractions.Repositories;
 using NotificaPix.Core.Abstractions.Security;
 using NotificaPix.Core.Abstractions.Services;
+using NotificaPix.Core.Options;
 using NotificaPix.Infrastructure.Mapping;
 using NotificaPix.Infrastructure.Persistence;
 using NotificaPix.Infrastructure.Repositories;
@@ -18,6 +19,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddNotificaPixInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.Configure<ItauPixOptions>(configuration.GetSection("ItauPix"));
         services.AddDbContext<NotificaPixDbContext>(options =>
         {
             var connectionString = configuration.GetConnectionString("Default");
@@ -40,10 +42,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IWebhookSigner, WebhookSigner>();
-       services.AddScoped<ICurrentUserContext, CurrentUserContext>();
+        services.AddScoped<ICurrentUserContext, CurrentUserContext>();
         services.AddScoped<IEmailSender, FakeEmailSender>();
         services.AddHttpClient("webhooks");
         services.AddHttpClient("bank-sync");
+        services.AddScoped<IItauPixService, ItauPixService>();
         services.AddScoped<IWebhookDispatcher, WebhookDispatcher>();
         services.AddScoped<IUsageService, UsageService>();
         services.AddScoped<IStripeService, StripeService>();

@@ -209,6 +209,56 @@ namespace NotificaPix.Infrastructure.Migrations
                     b.ToTable("BankApiIntegrations");
                 });
 
+            modelBuilder.Entity("NotificaPix.Core.Domain.Entities.BankWebhookEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Bank")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<Guid>("BankApiIntegrationId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("EventId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Signature")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BankApiIntegrationId", "EventId")
+                        .IsUnique();
+
+                    b.ToTable("BankWebhookEvents");
+                });
+
             modelBuilder.Entity("NotificaPix.Core.Domain.Entities.BankConnection", b =>
                 {
                     b.Property<Guid>("Id")
@@ -511,6 +561,17 @@ namespace NotificaPix.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("NotificaPix.Core.Domain.Entities.BankWebhookEvent", b =>
+                {
+                    b.HasOne("NotificaPix.Core.Domain.Entities.BankApiIntegration", "Integration")
+                        .WithMany()
+                        .HasForeignKey("BankApiIntegrationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Integration");
                 });
 
             modelBuilder.Entity("NotificaPix.Core.Domain.Entities.AuditLog", b =>

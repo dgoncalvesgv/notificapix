@@ -17,6 +17,7 @@ public class NotificaPixDbContext(DbContextOptions<NotificaPixDbContext> options
     public DbSet<Invite> Invites => Set<Invite>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<BankApiIntegration> BankApiIntegrations => Set<BankApiIntegration>();
+    public DbSet<BankWebhookEvent> BankWebhookEvents => Set<BankWebhookEvent>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -69,6 +70,15 @@ public class NotificaPixDbContext(DbContextOptions<NotificaPixDbContext> options
             entity.Property(x => x.ServiceUrl).HasMaxLength(512);
             entity.Property(x => x.ApiKey).HasMaxLength(64);
             entity.Property(x => x.AccountIdentifier).HasMaxLength(64);
+        });
+
+        builder.Entity<BankWebhookEvent>(entity =>
+        {
+            entity.HasIndex(x => new { x.BankApiIntegrationId, x.EventId }).IsUnique();
+            entity.Property(x => x.Bank).HasMaxLength(64);
+            entity.Property(x => x.EventId).HasMaxLength(128);
+            entity.Property(x => x.EventType).HasMaxLength(64);
+            entity.Property(x => x.Signature).HasMaxLength(256);
         });
     }
 }

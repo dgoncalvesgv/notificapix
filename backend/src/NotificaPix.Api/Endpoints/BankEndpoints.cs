@@ -91,6 +91,7 @@ public static class BankEndpoints
     private static async Task<Ok<ApiResponse<BankIntegrationStatusDto>>> GetItauIntegrationAsync(
         ICurrentUserContext currentUser,
         NotificaPixDbContext context,
+        IItauPixService itauPixService,
         CancellationToken cancellationToken)
     {
         var integration = await context.BankApiIntegrations.FirstOrDefaultAsync(x =>
@@ -123,10 +124,6 @@ public static class BankEndpoints
 
         var hasIncomingCertificate = !string.IsNullOrWhiteSpace(request.CertificateBase64);
         var hasExistingCertificate = !string.IsNullOrWhiteSpace(integration.CertificateBase64);
-        if (string.IsNullOrWhiteSpace(request.ServiceUrl))
-        {
-            throw new ArgumentException("Service URL is required");
-        }
         if (string.IsNullOrWhiteSpace(request.ApiKey))
         {
             throw new ArgumentException("API Key é obrigatório");
@@ -185,6 +182,7 @@ public static class BankEndpoints
             BankIntegrationTestRequest request,
             ICurrentUserContext currentUser,
             NotificaPixDbContext context,
+            IItauPixService itauPixService,
             CancellationToken cancellationToken)
     {
         var integration = await context.BankApiIntegrations.FirstOrDefaultAsync(x =>
@@ -231,8 +229,12 @@ public static class BankEndpoints
             return TypedResults.BadRequest(ApiResponse<string>.Fail(errorMessage));
         }
 
-        // Simula chamada à API externa do banco.
-        await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
+        var testResult = await itauPixService.TestCredentialsAsync(integration, useProduction, cancellationToken);
+        if (!testResult.Success)
+        {
+            var message = testResult.ErrorMessage ?? "Falha ao testar a integração com o Itaú.";
+            return TypedResults.BadRequest(ApiResponse<string>.Fail(message));
+        }
 
         integration.ProductionEnabled = useProduction;
         integration.IsTested = true;
