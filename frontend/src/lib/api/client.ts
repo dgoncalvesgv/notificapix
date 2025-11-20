@@ -46,7 +46,7 @@ export const dashboardApi = {
 
 export const transactionsApi = {
   list: (payload: Record<string, unknown>) => api.post<ApiResponse<PagedResult<PixTransactionDto>>>("/transactions/list", payload),
-  syncBanks: () => api.post<ApiResponse<BankSyncResultDto>>("/transactions/sync-banks", {})
+  syncBanks: () => api.get<ApiResponse<BankSyncResultDto>>("/transactions/sync-banks")
 };
 
 export const alertsApi = {

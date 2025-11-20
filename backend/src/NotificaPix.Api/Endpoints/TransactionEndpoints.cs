@@ -1,9 +1,14 @@
 using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NotificaPix.Core.Abstractions.Security;
@@ -22,7 +27,7 @@ public static class TransactionEndpoints
         var group = app.MapGroup("/transactions").WithTags("Transactions").RequireAuthorization();
         group.MapPost("/list", ListAsync);
         group.MapGet("/{id:guid}", GetByIdAsync);
-        group.MapPost("/sync-banks", SyncBankIntegrationsAsync).RequireAuthorization("OrgAdmin");
+        group.MapGet("/sync-banks", SyncBankIntegrationsAsync).RequireAuthorization("OrgAdmin");
         return app;
     }
 
@@ -144,10 +149,30 @@ public static class TransactionEndpoints
                     integration.ServiceUrl,
                     executionRequest.Environment);
 
-                var response = await httpClient.PostAsJsonAsync(
-                    integration.ServiceUrl,
-                    executionRequest,
-                    cancellationToken);
+                string? accessToken = null;
+                if (integration.Bank.Equals("Itau", StringComparison.OrdinalIgnoreCase))
+                {
+                    accessToken = await RequestItauAccessTokenAsync(executionRequest, httpClientFactory, logger, cancellationToken);
+                    if (string.IsNullOrWhiteSpace(accessToken))
+                    {
+                        messages.Add($"{integration.Bank}: falha ao obter token OAuth.");
+                        continue;
+                    }
+                }
+
+                var requestUrl = BuildSyncRequestUrl(integration.ServiceUrl!, executionRequest);
+                using var requestMessage = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+                if (!string.IsNullOrWhiteSpace(accessToken))
+                {
+                    requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                    if (!string.IsNullOrWhiteSpace(executionRequest.ApiKey))
+                    {
+                        requestMessage.Headers.TryAddWithoutValidation("x-itau-apikey", executionRequest.ApiKey);
+                    }
+                    requestMessage.Headers.TryAddWithoutValidation("x-itau-correlationID", Guid.NewGuid().ToString());
+                }
+
+                var response = await httpClient.SendAsync(requestMessage, cancellationToken);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -157,7 +182,15 @@ public static class TransactionEndpoints
                     continue;
                 }
 
-                var remoteResult = await response.Content.ReadFromJsonAsync<BankSyncResultDto>(cancellationToken: cancellationToken);
+                BankSyncResultDto? remoteResult = null;
+                try
+                {
+                    remoteResult = await response.Content.ReadFromJsonAsync<BankSyncResultDto>(cancellationToken: cancellationToken);
+                }
+                catch (JsonException jsonEx)
+                {
+                    logger.LogWarning(jsonEx, "Não foi possível desserializar a resposta da integração {IntegrationId}", integration.Id);
+                }
                 processedIntegrations++;
 
                 if (remoteResult is not null)
@@ -260,6 +293,76 @@ public static class TransactionEndpoints
             certificateFileName);
     }
 
+    private static async Task<string?> RequestItauAccessTokenAsync(
+        IntegrationExecutionRequest executionRequest,
+        IHttpClientFactory httpClientFactory,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        var tokenUrl = executionRequest.UseProduction
+            ? "https://oauth.itau/identity/connect/token"
+            : "https://oauthd.itau/identity/connect/token";
+
+        var client = httpClientFactory.CreateClient("bank-sync");
+        using var request = new HttpRequestMessage(HttpMethod.Post, tokenUrl)
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = "client_credentials",
+                ["client_id"] = executionRequest.ClientId,
+                ["client_secret"] = executionRequest.ClientSecret,
+                ["scope"] = "pix.recebimentos"
+            })
+        };
+
+        using var response = await client.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            logger.LogWarning("Falha ao obter token OAuth do Itaú: {Status} {Body}", response.StatusCode, errorBody);
+            return null;
+        }
+
+        var tokenResponse = await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken);
+        if (tokenResponse?.AccessToken is null)
+        {
+            logger.LogWarning("Resposta de token do Itaú não contém access_token.");
+            return null;
+        }
+
+        return tokenResponse.AccessToken;
+    }
+
+    private static string BuildSyncRequestUrl(string serviceUrl, IntegrationExecutionRequest executionRequest)
+    {
+        var queryParams = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["integrationId"] = executionRequest.IntegrationId.ToString(),
+            ["organizationId"] = executionRequest.OrganizationId.ToString(),
+            ["bank"] = executionRequest.Bank,
+            ["environment"] = executionRequest.Environment,
+            ["useProduction"] = executionRequest.UseProduction.ToString().ToLowerInvariant(),
+            ["accountIdentifier"] = executionRequest.AccountIdentifier,
+            ["apiKey"] = executionRequest.ApiKey,
+            ["clientId"] = executionRequest.ClientId,
+            ["clientSecret"] = executionRequest.ClientSecret
+        };
+
+        AddQueryParamIfNotEmpty(queryParams, "certificateBase64", executionRequest.CertificateBase64);
+        AddQueryParamIfNotEmpty(queryParams, "certificatePassword", executionRequest.CertificatePassword);
+        AddQueryParamIfNotEmpty(queryParams, "certificateFileName", executionRequest.CertificateFileName);
+
+        return QueryHelpers.AddQueryString(serviceUrl, queryParams!);
+    }
+
+    private static void AddQueryParamIfNotEmpty(IDictionary<string, string?> queryParams, string key, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            queryParams[key] = value;
+        }
+    }
+
     private enum IntegrationEnvironment
     {
         Sandbox,
@@ -279,4 +382,9 @@ public static class TransactionEndpoints
         string? CertificateBase64,
         string? CertificatePassword,
         string? CertificateFileName);
+
+    private sealed record OAuthTokenResponse(
+        [property: JsonPropertyName("access_token")] string AccessToken,
+        [property: JsonPropertyName("token_type")] string TokenType,
+        [property: JsonPropertyName("expires_in")] int ExpiresIn);
 }
