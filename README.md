@@ -102,6 +102,24 @@ docker-compose up --build
 
 - `backend/scripts/generate-test-jwt.sh <userId> <orgId> <role>`
 - `backend/scripts/generate-api-key.sh`
+- `backend/scripts/send-itau-webhook.sh <apiKey> <id_conta> [url]`
+
+## Integração Itaú Pix
+
+### Configuração
+
+- A API lê os endpoints do Itaú via `ItauPix` em `appsettings` (sandbox já aponta para o domínio público do DevPortal). Para sobrescrever via ambiente, use:  
+  `ItauPix__SandboxBaseUrl`, `ItauPix__ProductionBaseUrl`, `ItauPix__SandboxOAuthUrl`, `ItauPix__ProductionOAuthUrl`.  
+  O front consome `VITE_ITAU_WEBHOOK_URL`, que deve apontar para `/integrations/itau/webhook`.
+- Cadastre `client_id`, `client_secret`, `API Key (x-itau-apikey)`, `id_conta` e o `.pfx` diretamente em `/app/bank-connections`.
+- Certificados devem ser enviados pelo modal (o backend armazena em Base64 criptografado no banco). Em produção o mesmo certificado é usado automaticamente para mutual TLS.
+
+### Observabilidade e QA
+
+- Logs críticos: `ItauPixService` (sincronizações OAuth + chamadas REST) e `ItauWebhook` (entregas webhook). Ambos já estão habilitados via Serilog, então basta observar o console/Logtail.
+- Cada webhook processado gera um registro em `BankWebhookEvents` (idempotência + auditoria). A tabela armazena assinatura, payload completo e horário de recebimento.
+- Use `backend/scripts/send-itau-webhook.sh <apiKey> <id_conta>` para simular eventos sandbox (usa `docs/examples/itau-webhook.json`), validando assinatura igual ao Itaú oficial.
+- Para testar credenciais, utilize `/bank/api/itau/test` (via dashboard ou `POST /bank/api/itau/test`) – o endpoint agora faz OAuth real + `POST /leituras_qrcodes_pix` e devolve mensagens detalhadas em caso de falha.
 
 ## Testes
 

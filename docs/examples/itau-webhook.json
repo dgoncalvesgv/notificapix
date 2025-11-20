@@ -1,0 +1,34 @@
+{
+  "id_evento": "evt-itau-demo-001",
+  "id_conta": "6070119011110000000012345",
+  "lancamentos": [
+    {
+      "id_lancamento": "b1ff5cc0-8a9c-497e-b983-738904c23389",
+      "literal_lancamento": "PIX QRS PMD Demo 12/06",
+      "tipo_lancamento": "pagamento",
+      "tipo_operacao": "credito",
+      "tipo_pix": "dinamico",
+      "detalhe_pagamento": {
+        "id_pagamento": "E60701190202205301441DY50YKTJG8A",
+        "id_transferencia": "TRX123456789",
+        "txid": "c3df5cc0-2a0c-381e-b207-738904c23555",
+        "valor": 125.4,
+        "data": "2024-06-07T10:32:00Z",
+        "texto_resposta_pagador": "Pedido #NPX-1021",
+        "debitado": {
+          "nome": "Pagador Demo",
+          "numero_documento": "65481904594",
+          "conta": "0000000675432",
+          "agencia": "3200"
+        },
+        "creditado": {
+          "nome": "Loja Notifica",
+          "numero_documento": "12345678000199",
+          "conta": "0000000123456",
+          "agencia": "1111",
+          "chave_enderecamento": "pix@notifica.com"
+        }
+      }
+    }
+  ]
+}

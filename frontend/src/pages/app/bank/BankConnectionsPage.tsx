@@ -146,10 +146,6 @@ export const BankConnectionsPage = () => {
       toast.push("Selecione o arquivo .pfx", "error");
       return;
     }
-    if (!itauForm.serviceUrl.trim()) {
-      toast.push("Informe a URL do serviço", "error");
-      return;
-    }
     if (!itauForm.apiKey.trim()) {
       toast.push("Informe a API Key", "error");
       return;
@@ -428,13 +424,14 @@ export const BankConnectionsPage = () => {
                   </div>
                 )}
                 <label className="text-sm flex flex-col gap-1">
-                  URL do serviço
+                  URL do serviço (opcional)
                   <input
                     className="border border-slate-200 rounded px-3 py-2"
-                    placeholder="https://sandbox.devportal.itau.com.br/..."
+                    placeholder="Deixe vazio para usar o endpoint oficial do Itaú"
                     value={itauForm.serviceUrl}
                     onChange={(e) => setItauForm((prev) => ({ ...prev, serviceUrl: e.target.value }))}
                   />
+                  <span className="text-xs text-slate-500">Usamos automaticamente a URL padrão do Itaú Pix Recebimentos.</span>
                 </label>
                 <label className="text-sm flex flex-col gap-1">
                   API Key (x-itau-apikey)
