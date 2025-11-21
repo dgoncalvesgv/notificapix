@@ -13,6 +13,7 @@ export type AuthResponse = {
 
 export type UserDto = {
   id: string;
+  name: string;
   email: string;
   role: "OrgAdmin" | "OrgMember";
 };
@@ -25,6 +26,10 @@ export type OrganizationDto = {
   usageCount: number;
   quota: number;
   billingEmail: string;
+  planDisplayName: string;
+  planPriceText: string;
+  teamMembersLimit: number;
+  bankAccountsLimit: number;
 };
 
 export type PixTransactionDto = {
@@ -97,6 +102,37 @@ export type BillingSessionResponse = {
 export type StripeSubscriptionResponse = {
   clientSecret: string;
   subscriptionId: string;
+};
+
+export type PlanInfoDto = {
+  plan: "Starter" | "Pro" | "Business";
+  displayName: string;
+  priceText: string;
+  monthlyTransactions: number;
+  teamMembersLimit: number;
+  bankAccountsLimit: number;
+};
+
+export type PixReceiverDto = {
+  id: string;
+  label: string;
+  keyType: string;
+  keyValue: string;
+  isDefault: boolean;
+};
+
+export type PixReceiversResponse = {
+  options: PixReceiverDto[];
+  selected?: PixReceiverDto;
+};
+
+export type PixStaticQrCodeDto = {
+  id: string;
+  amount: number;
+  payload: string;
+  txId: string;
+  receiverLabel: string;
+  createdAt: string;
 };
 
 export type OverviewMetricsResponse = {

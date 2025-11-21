@@ -10,10 +10,15 @@ import { TransactionsPage } from "./pages/app/transactions/TransactionsPage";
 import { AlertsPage } from "./pages/app/alerts/AlertsPage";
 import { BankConnectionsPage } from "./pages/app/bank/BankConnectionsPage";
 import { NotificationSettingsPage } from "./pages/app/settings/NotificationSettingsPage";
+import { SettingsPage } from "./pages/app/settings/SettingsPage";
+import { AccountSettingsPage } from "./pages/app/settings/AccountSettingsPage";
+import { ChangePasswordPage } from "./pages/app/settings/ChangePasswordPage";
 import { TeamPage } from "./pages/app/team/TeamPage";
 import { BillingPage } from "./pages/app/billing/BillingPage";
 import { AuditLogsPage } from "./pages/app/logs/AuditLogsPage";
 import { ApiKeysPage } from "./pages/app/api/ApiKeysPage";
+import { PixQrCodesPage } from "./pages/app/pix/PixQrCodesPage";
+import { PixKeysPage } from "./pages/app/settings/PixKeysPage";
 import { useAuthStore } from "./store/auth";
 import { ToastProvider } from "./context/ToastContext";
 
@@ -45,11 +50,16 @@ export default function App() {
             <Route path="/app/transactions" element={<TransactionsPage />} />
             <Route path="/app/alerts" element={<AlertsPage />} />
             <Route path="/app/bank-connections" element={<BankConnectionsPage />} />
+            <Route path="/app/settings" element={<SettingsPage />} />
+            <Route path="/app/settings/profile" element={<AccountSettingsPage />} />
+            <Route path="/app/settings/security" element={<ChangePasswordPage />} />
             <Route path="/app/settings/notifications" element={<NotificationSettingsPage />} />
+            <Route path="/app/settings/pix-keys" element={<PixKeysPage />} />
             <Route path="/app/team" element={<TeamPage />} />
             <Route path="/app/billing" element={<BillingPage />} />
             <Route path="/app/audit-logs" element={<AuditLogsPage />} />
             <Route path="/app/api-keys" element={<ApiKeysPage />} />
+            <Route path="/app/pix/qr-codes" element={<PixQrCodesPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />

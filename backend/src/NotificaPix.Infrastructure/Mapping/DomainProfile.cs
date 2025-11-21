@@ -9,10 +9,13 @@ public class DomainProfile : Profile
     public DomainProfile()
     {
         CreateMap<Organization, OrganizationDto>()
-            .ConstructUsing(src => new OrganizationDto(src.Id, src.Name, src.Slug, src.Plan, src.UsageCount, ResolveQuota(src.Plan), src.BillingEmail));
+            .ConvertUsing<OrganizationToDtoConverter>();
 
         CreateMap<User, UserDto>()
             .ForMember(dest => dest.Role, opt => opt.Ignore());
+
+        CreateMap<PixStaticQrCode, PixStaticQrCodeDto>()
+            .ConvertUsing<PixStaticQrCodeConverter>();
 
         CreateMap<PixTransaction, PixTransactionDto>();
         CreateMap<Alert, AlertDto>();
@@ -35,10 +38,5 @@ public class DomainProfile : Profile
                 src.CreatedAt));
         CreateMap<AuditLog, AuditLogDto>();
     }
-    private static int ResolveQuota(NotificaPix.Core.Domain.Enums.PlanType plan) =>
-        plan == NotificaPix.Core.Domain.Enums.PlanType.Pro
-            ? 1000
-            : plan == NotificaPix.Core.Domain.Enums.PlanType.Business
-                ? int.MaxValue
-                : 100;
+
 }

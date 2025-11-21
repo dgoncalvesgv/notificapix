@@ -13,6 +13,8 @@ public class Organization : EntityBase
     public int UsageCount { get; set; }
     public string BillingEmail { get; set; } = string.Empty;
     public string? StripePriceId { get; set; }
+    public Guid? DefaultPixKeyId { get; set; }
+    public PixKey? DefaultPixKey { get; set; }
     public ICollection<Membership> Memberships { get; set; } = new List<Membership>();
     public ICollection<BankConnection> BankConnections { get; set; } = new List<BankConnection>();
     public ICollection<ApiKey> ApiKeys { get; set; } = new List<ApiKey>();

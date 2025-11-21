@@ -37,6 +37,8 @@ public static class ServiceCollectionExtensions
         });
         services.AddAutoMapper(typeof(DomainProfile));
 
+        services.Configure<PlanSettingsOptions>(configuration.GetSection("PlanSettings"));
+
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
@@ -44,6 +46,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IWebhookSigner, WebhookSigner>();
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
         services.AddScoped<IEmailSender, FakeEmailSender>();
+        services.AddSingleton<IPlanSettingsProvider, PlanSettingsProvider>();
         services.AddHttpClient("webhooks");
         services.AddHttpClient("bank-sync");
         services.AddScoped<IItauPixService, ItauPixService>();

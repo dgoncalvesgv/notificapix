@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -14,9 +15,26 @@ public static class BillingEndpoints
     public static IEndpointRouteBuilder MapBillingEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/billing").WithTags("Billing").RequireAuthorization("OrgAdmin");
+        group.MapGet("/plans", GetPlansAsync);
         group.MapPost("/checkout-session", CreateCheckoutSessionAsync);
         group.MapPost("/portal", CreatePortalAsync);
         return app;
+    }
+
+    private static Ok<ApiResponse<IEnumerable<PlanInfoDto>>> GetPlansAsync(IPlanSettingsProvider planSettingsProvider)
+    {
+        var plans = planSettingsProvider
+            .GetAll()
+            .Select(t => new PlanInfoDto(
+                t.Plan,
+                t.Settings.DisplayName,
+                t.Settings.PriceText,
+                t.Settings.MonthlyTransactions,
+                t.Settings.TeamMembersLimit,
+                t.Settings.BankAccountsLimit))
+            .ToList();
+
+        return TypedResults.Ok(ApiResponse<IEnumerable<PlanInfoDto>>.Ok(plans));
     }
 
     [Authorize(Policy = "OrgAdmin")]

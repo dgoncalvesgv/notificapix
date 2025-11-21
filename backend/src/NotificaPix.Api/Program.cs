@@ -126,6 +126,7 @@ app.MapAuditEndpoints();
 app.MapQuotaEndpoints();
 app.MapDashboardEndpoints();
 app.MapIntegrationEndpoints();
+app.MapPixEndpoints();
 
 using (var scope = app.Services.CreateScope())
 {

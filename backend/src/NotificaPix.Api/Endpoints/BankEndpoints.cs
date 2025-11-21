@@ -31,12 +31,30 @@ public static class BankEndpoints
     }
 
     [Authorize(Policy = "OrgAdmin")]
-    private static async Task<Ok<ApiResponse<string>>> InitAsync(
+    private static async Task<Results<Ok<ApiResponse<string>>, BadRequest<ApiResponse<string>>>> InitAsync(
         BankConnectInitRequest request,
         IOpenFinanceProvider provider,
         ICurrentUserContext currentUser,
+        IPlanSettingsProvider planSettingsProvider,
+        NotificaPixDbContext context,
         CancellationToken cancellationToken)
     {
+        var organization = await context.Organizations.FirstOrDefaultAsync(o => o.Id == currentUser.OrganizationId, cancellationToken);
+        if (organization is null)
+        {
+            return TypedResults.BadRequest(ApiResponse<string>.Fail("Organização não encontrada"));
+        }
+
+        var planSettings = planSettingsProvider.Get(organization.Plan);
+        if (planSettings.BankAccountsLimit > 0)
+        {
+            var totalConnections = await CountBankConnectionsAsync(currentUser.OrganizationId, context, cancellationToken);
+            if (totalConnections >= planSettings.BankAccountsLimit)
+            {
+                return TypedResults.BadRequest(ApiResponse<string>.Fail("Limite de contas bancárias atingido para o seu plano."));
+            }
+        }
+
         var url = await provider.CreateConsentUrlAsync(currentUser.OrganizationId, cancellationToken);
         return TypedResults.Ok(ApiResponse<string>.Ok(url));
     }
@@ -103,17 +121,34 @@ public static class BankEndpoints
     }
 
     [Authorize(Policy = "OrgAdmin")]
-    private static async Task<Ok<ApiResponse<BankIntegrationStatusDto>>> SaveItauIntegrationAsync(
+    private static async Task<Results<Ok<ApiResponse<BankIntegrationStatusDto>>, BadRequest<ApiResponse<string>>>> SaveItauIntegrationAsync(
         ItauIntegrationRequest request,
         ICurrentUserContext currentUser,
+        IPlanSettingsProvider planSettingsProvider,
         NotificaPixDbContext context,
         CancellationToken cancellationToken)
     {
+        var organization = await context.Organizations.FirstOrDefaultAsync(o => o.Id == currentUser.OrganizationId, cancellationToken);
+        if (organization is null)
+        {
+            return TypedResults.BadRequest(ApiResponse<string>.Fail("Organização não encontrada"));
+        }
+
         var integration = await context.BankApiIntegrations.FirstOrDefaultAsync(x =>
             x.OrganizationId == currentUser.OrganizationId && x.Bank == "Itau", cancellationToken);
 
         if (integration is null)
         {
+            var planSettings = planSettingsProvider.Get(organization.Plan);
+            if (planSettings.BankAccountsLimit > 0)
+            {
+                var totalConnections = await CountBankConnectionsAsync(currentUser.OrganizationId, context, cancellationToken);
+                if (totalConnections >= planSettings.BankAccountsLimit)
+                {
+                    return TypedResults.BadRequest(ApiResponse<string>.Fail("Limite de contas bancárias atingido para o seu plano."));
+                }
+            }
+
             integration = new BankApiIntegration
             {
                 OrganizationId = currentUser.OrganizationId,
@@ -274,5 +309,15 @@ public static class BankEndpoints
             integration.CertificatePassword,
             integration.CertificateFileName,
             hasCertificate);
+    }
+
+    private static async Task<int> CountBankConnectionsAsync(Guid organizationId, NotificaPixDbContext context, CancellationToken cancellationToken)
+    {
+        var openFinanceCount = await context.BankConnections.CountAsync(
+            c => c.OrganizationId == organizationId && c.Status != BankConnectionStatus.Revoked,
+            cancellationToken);
+
+        var manualCount = await context.BankApiIntegrations.CountAsync(i => i.OrganizationId == organizationId, cancellationToken);
+        return openFinanceCount + manualCount;
     }
 }

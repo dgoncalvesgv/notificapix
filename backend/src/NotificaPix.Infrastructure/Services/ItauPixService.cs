@@ -199,16 +199,27 @@ public class ItauPixService : IItauPixService
         var tokenUrl = useProduction ? _options.Value.ProductionOAuthUrl : _options.Value.SandboxOAuthUrl;
 
         var client = _httpClientFactory.CreateClient();
-        using var request = new HttpRequestMessage(HttpMethod.Post, tokenUrl)
+        using var request = new HttpRequestMessage(HttpMethod.Post, tokenUrl);
+        request.Version = HttpVersion.Version11;
+        request.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        request.Headers.TryAddWithoutValidation("User-Agent", "PostmanRuntime/7.50.0");
+        request.Headers.TryAddWithoutValidation("Accept", "*/*");
+        request.Headers.TryAddWithoutValidation("Cache-Control", "no-cache");
+        request.Headers.TryAddWithoutValidation("Connection", "keep-alive");
+        request.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate, br");
+        request.Headers.ExpectContinue = false;
+
+        var payload = new Dictionary<string, string>
         {
-            Content = new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["grant_type"] = "client_credentials",
-                ["client_id"] = clientId,
-                ["client_secret"] = clientSecret,
-                ["scope"] = "pix.recebimentos"
-            })
+            ["grant_type"] = "client_credentials",
+            ["client_id"] = clientId,
+            ["client_secret"] = clientSecret
         };
+
+        var content = new FormUrlEncodedContent(payload);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-www-form-urlencoded");
+        content.Headers.ContentType.CharSet = null;
+        request.Content = content;
 
         var response = await client.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
@@ -230,6 +241,7 @@ public class ItauPixService : IItauPixService
 
         return new OAuthTokenResult(tokenResponse.AccessToken, null);
     }
+
 
     private HttpClient CreateHttpClient(BankApiIntegration integration, bool useProduction)
     {

@@ -2,20 +2,25 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NotificaPix.Core.Abstractions.Services;
 using NotificaPix.Core.Domain.Entities;
-using NotificaPix.Core.Domain.Enums;
 using NotificaPix.Infrastructure.Persistence;
 
 namespace NotificaPix.Infrastructure.Services;
 
-public class UsageService(NotificaPixDbContext context, ILogger<UsageService> logger) : IUsageService
+public class UsageService : IUsageService
 {
+    private readonly NotificaPixDbContext _context;
+    private readonly ILogger<UsageService> _logger;
+    private readonly IPlanSettingsProvider _planSettingsProvider;
+
+    public UsageService(NotificaPixDbContext context, ILogger<UsageService> logger, IPlanSettingsProvider planSettingsProvider)
+    {
+        _context = context;
+        _logger = logger;
+        _planSettingsProvider = planSettingsProvider;
+    }
+
     public int ResolveQuota(Organization organization) =>
-        organization.Plan switch
-        {
-            PlanType.Pro => 1000,
-            PlanType.Business => int.MaxValue,
-            _ => 100
-        };
+        _planSettingsProvider.Get(organization.Plan).MonthlyTransactions;
 
     public async Task<bool> TryConsumeAsync(Organization organization, int amount, CancellationToken cancellationToken)
     {
@@ -29,12 +34,12 @@ public class UsageService(NotificaPixDbContext context, ILogger<UsageService> lo
         var quota = ResolveQuota(organization);
         if (organization.UsageCount + amount > quota)
         {
-            logger.LogWarning("Organization {Org} exceeded monthly quota {Quota}", organization.Id, quota);
+            _logger.LogWarning("Organization {Org} exceeded monthly quota {Quota}", organization.Id, quota);
             return false;
         }
 
         organization.UsageCount += amount;
-        await context.SaveChangesAsync(cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
         return true;
     }
 }

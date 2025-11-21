@@ -2,13 +2,13 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { billingApi, orgApi } from "../../../lib/api/client";
-import type { OrganizationDto } from "../../../lib/api/types";
+import type { OrganizationDto, PlanInfoDto } from "../../../lib/api/types";
 import { useToast } from "../../../context/ToastContext";
 
-const plans = [
-  { name: "Starter", quota: "100 notificações", price: "R$ 99/mês" },
-  { name: "Pro", quota: "1.000 notificações", price: "R$ 399/mês" },
-  { name: "Business", quota: "Ilimitado", price: "Custom" }
+const fallbackPlans: PlanInfoDto[] = [
+  { plan: "Starter", displayName: "Grátis", priceText: "R$ 0/mês", monthlyTransactions: 30, teamMembersLimit: 1, bankAccountsLimit: 1 },
+  { plan: "Pro", displayName: "Pro", priceText: "R$ 399/mês", monthlyTransactions: 1000, teamMembersLimit: 0, bankAccountsLimit: 0 },
+  { plan: "Business", displayName: "Business", priceText: "Custom", monthlyTransactions: 1000000, teamMembersLimit: 0, bankAccountsLimit: 0 }
 ];
 
 const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
@@ -21,27 +21,34 @@ export const BillingPage = () => {
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [plans, setPlans] = useState<PlanInfoDto[]>([]);
   const toast = useToast();
 
   const fetchOrganization = () => orgApi.current().then((res) => setOrganization(res.data.data));
 
   useEffect(() => {
     fetchOrganization();
+    billingApi
+      .plans()
+      .then((res) => setPlans(res.data.data ?? fallbackPlans))
+      .catch(() => setPlans(fallbackPlans));
   }, []);
 
-  const openCheckout = async (planName: string) => {
+  const planList = plans.length ? plans : fallbackPlans;
+
+  const openCheckout = async (plan: PlanInfoDto) => {
     if (!stripePromise) {
       toast.push("Configure VITE_STRIPE_PUBLISHABLE_KEY para habilitar o checkout.", "error");
       return;
     }
 
-    setLoadingPlan(planName);
+    setLoadingPlan(plan.plan);
     try {
-      const { data } = await billingApi.checkout({ plan: planName });
+      const { data } = await billingApi.checkout({ plan: plan.plan });
       if (!data.success || !data.data?.clientSecret) {
         throw new Error(data.error ?? "Não foi possível iniciar o checkout.");
       }
-      setSelectedPlan(planName);
+      setSelectedPlan(plan.displayName);
       setClientSecret(data.data.clientSecret);
       setSubscriptionId(data.data.subscriptionId);
       setIsModalOpen(true);
@@ -65,25 +72,15 @@ export const BillingPage = () => {
     fetchOrganization();
   };
 
-  const managePortal = async () => {
-    const { data } = await billingApi.portal();
-    const url = data.data?.url;
-    if (url) {
-      window.open(url, "_blank");
-    }
-    toast.push(url ? "Abrindo portal da Stripe." : "Não foi possível abrir o portal.", url ? "info" : "error");
-  };
-
   return (
     <div className="space-y-6 relative">
-      <header className="flex items-center justify-between">
+      <header>
         <div>
           <h1 className="text-2xl font-semibold">Billing</h1>
-          <p className="text-sm text-slate-500">Plano atual: {organization?.plan}</p>
+          <p className="text-sm text-slate-500">
+            Plano atual: {organization?.planDisplayName ?? "—"}
+          </p>
         </div>
-        <button className="btn-primary" onClick={managePortal}>
-          Portal Stripe
-        </button>
       </header>
       {!stripePromise && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
@@ -91,19 +88,23 @@ export const BillingPage = () => {
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {plans.map((plan) => (
-          <div key={plan.name} className="border rounded-xl p-4 bg-white space-y-2">
-            <h3 className="font-semibold">{plan.name}</h3>
-            <p className="text-2xl">{plan.price}</p>
-            <p className="text-sm text-slate-500">{plan.quota}</p>
+        {planList.map((plan) => (
+          <div key={plan.plan} className="border rounded-xl p-4 bg-white space-y-2">
+            <h3 className="font-semibold">{plan.displayName}</h3>
+            <p className="text-2xl">{plan.priceText}</p>
+            <p className="text-sm text-slate-500">
+              {plan.monthlyTransactions <= 0 || plan.monthlyTransactions >= 1_000_000
+                ? "Ilimitado"
+                : `${plan.monthlyTransactions} transações/mês`}
+            </p>
             <button
-              disabled={organization?.plan === plan.name || loadingPlan === plan.name}
+              disabled={organization?.plan === plan.plan || loadingPlan === plan.plan}
               className="btn-primary w-full disabled:bg-slate-200 disabled:text-slate-500"
-              onClick={() => openCheckout(plan.name)}
+              onClick={() => openCheckout(plan)}
             >
-              {loadingPlan === plan.name
+              {loadingPlan === plan.plan
                 ? "Preparando..."
-                : organization?.plan === plan.name
+                : organization?.plan === plan.plan
                   ? "Atual"
                   : "Selecionar"}
             </button>

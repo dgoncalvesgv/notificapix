@@ -17,13 +17,20 @@ const ToastContext = createContext<ToastContextProps | undefined>(undefined);
 export const ToastProvider = ({ children }: { children: ReactNode }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const push = useCallback((message: string, type: Toast["type"] = "info") => {
-    setToasts((prev) => [...prev, { id: Date.now(), message, type }]);
-  }, []);
-
   const dismiss = useCallback((id: number) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
+
+  const push = useCallback(
+    (message: string, type: Toast["type"] = "info") => {
+      const id = Date.now();
+      setToasts((prev) => [...prev, { id, message, type }]);
+      window.setTimeout(() => {
+        dismiss(id);
+      }, 5000);
+    },
+    [dismiss]
+  );
 
   return (
     <ToastContext.Provider value={{ toasts, push, dismiss }}>

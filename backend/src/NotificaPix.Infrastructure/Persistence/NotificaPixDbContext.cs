@@ -18,6 +18,8 @@ public class NotificaPixDbContext(DbContextOptions<NotificaPixDbContext> options
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<BankApiIntegration> BankApiIntegrations => Set<BankApiIntegration>();
     public DbSet<BankWebhookEvent> BankWebhookEvents => Set<BankWebhookEvent>();
+    public DbSet<PixStaticQrCode> PixStaticQrCodes => Set<PixStaticQrCode>();
+    public DbSet<PixKey> PixKeys => Set<PixKey>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -26,12 +28,17 @@ public class NotificaPixDbContext(DbContextOptions<NotificaPixDbContext> options
             entity.HasIndex(o => o.Slug).IsUnique();
             entity.Property(o => o.Plan).HasConversion<string>().HasMaxLength(32);
             entity.Property(o => o.BillingEmail).HasMaxLength(256);
+            entity.HasOne(o => o.DefaultPixKey)
+                .WithMany()
+                .HasForeignKey(o => o.DefaultPixKeyId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<User>(entity =>
         {
             entity.HasIndex(x => x.Email).IsUnique();
-            entity.Property(x => x.Email).HasMaxLength(256);
+            entity.Property(x => x.Name).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Email).HasMaxLength(256).IsRequired();
         });
 
         builder.Entity<Membership>(entity =>
@@ -79,6 +86,35 @@ public class NotificaPixDbContext(DbContextOptions<NotificaPixDbContext> options
             entity.Property(x => x.EventId).HasMaxLength(128);
             entity.Property(x => x.EventType).HasMaxLength(64);
             entity.Property(x => x.Signature).HasMaxLength(256);
+        });
+
+        builder.Entity<PixKey>(entity =>
+        {
+            entity.Property(x => x.Label).HasMaxLength(128);
+            entity.Property(x => x.KeyType).HasMaxLength(32);
+            entity.Property(x => x.KeyValue).HasMaxLength(128);
+            entity.HasIndex(x => new { x.OrganizationId, x.KeyValue }).IsUnique();
+            entity.HasOne(x => x.Organization)
+                .WithMany()
+                .HasForeignKey(x => x.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PixStaticQrCode>(entity =>
+        {
+            entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.Payload).HasColumnType("text");
+            entity.Property(x => x.TxId).HasMaxLength(64);
+            entity.HasIndex(x => x.OrganizationId);
+            entity.HasIndex(x => x.PixKeyId);
+            entity.HasOne(x => x.Organization)
+                .WithMany()
+                .HasForeignKey(x => x.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.PixKey)
+                .WithMany()
+                .HasForeignKey(x => x.PixKeyId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

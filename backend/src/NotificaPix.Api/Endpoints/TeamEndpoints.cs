@@ -42,14 +42,31 @@ public static class TeamEndpoints
     }
 
     [Authorize(Policy = "OrgAdmin")]
-    private static async Task<Ok<ApiResponse<InviteDto>>> InviteAsync(
+    private static async Task<Results<Ok<ApiResponse<InviteDto>>, BadRequest<ApiResponse<string>>>> InviteAsync(
         TeamInviteRequest request,
         ICurrentUserContext currentUser,
         NotificaPixDbContext context,
         IEmailSender emailSender,
         IMapper mapper,
+        IPlanSettingsProvider planSettingsProvider,
         CancellationToken cancellationToken)
     {
+        var organization = await context.Organizations.FirstOrDefaultAsync(o => o.Id == currentUser.OrganizationId, cancellationToken);
+        if (organization is null)
+        {
+            return TypedResults.BadRequest(ApiResponse<string>.Fail("Organização não encontrada"));
+        }
+
+        var planSettings = planSettingsProvider.Get(organization.Plan);
+        if (planSettings.TeamMembersLimit > 0)
+        {
+            var currentMembers = await context.Memberships.CountAsync(m => m.OrganizationId == organization.Id, cancellationToken);
+            if (currentMembers >= planSettings.TeamMembersLimit)
+            {
+                return TypedResults.BadRequest(ApiResponse<string>.Fail("Limite de integrantes atingido para o seu plano."));
+            }
+        }
+
         var invite = new Invite
         {
             OrganizationId = currentUser.OrganizationId,
@@ -83,7 +100,7 @@ public static class TeamEndpoints
 
         var user = await context.Users.FirstOrDefaultAsync(u => u.Email == invite.Email, cancellationToken);
         var isNewUser = user is null;
-        user ??= new User { Email = invite.Email };
+        user ??= new User { Name = invite.Email, Email = invite.Email };
         user.PasswordHash = passwordHasher.Hash(request.Password);
         user.IsActive = true;
 

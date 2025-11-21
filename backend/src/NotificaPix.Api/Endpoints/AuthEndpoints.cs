@@ -22,6 +22,7 @@ public static class AuthEndpoints
         group.MapPost("/login", LoginAsync);
         group.MapPost("/forgot", ForgotAsync);
         group.MapPost("/reset", ResetAsync);
+        group.MapPost("/change-password", ChangePasswordAsync).RequireAuthorization();
         return app;
     }
 
@@ -47,6 +48,7 @@ public static class AuthEndpoints
 
         var user = new User
         {
+            Name = request.Name,
             Email = request.Email,
             PasswordHash = passwordHasher.Hash(request.Password)
         };
@@ -69,7 +71,7 @@ public static class AuthEndpoints
         await context.SaveChangesAsync(cancellationToken);
 
         var token = jwtTokenService.Generate(user, organization, MembershipRole.OrgAdmin);
-        var userDto = new UserDto(user.Id, user.Email, MembershipRole.OrgAdmin);
+        var userDto = new UserDto(user.Id, user.Name, user.Email, MembershipRole.OrgAdmin);
         var orgDto = mapper.Map<OrganizationDto>(organization);
         return TypedResults.Ok(ApiResponse<AuthResponse>.Ok(new AuthResponse(token, userDto, orgDto)));
     }
@@ -79,6 +81,7 @@ public static class AuthEndpoints
         NotificaPixDbContext context,
         IPasswordHasher passwordHasher,
         IJwtTokenService jwtTokenService,
+        IMapper mapper,
         CancellationToken cancellationToken)
     {
         var membership = await context.Memberships
@@ -97,14 +100,8 @@ public static class AuthEndpoints
         }
 
         var token = jwtTokenService.Generate(membership.User, membership.Organization, membership.Role);
-        var userDto = new UserDto(membership.User.Id, membership.User.Email, membership.Role);
-        var orgDto = new OrganizationDto(membership.Organization.Id, membership.Organization.Name, membership.Organization.Slug, membership.Organization.Plan, membership.Organization.UsageCount, membership.Organization.Plan switch
-        {
-            PlanType.Pro => 1000,
-            PlanType.Business => int.MaxValue,
-            _ => 100
-        }, membership.Organization.BillingEmail);
-
+        var userDto = new UserDto(membership.User.Id, membership.User.Name, membership.User.Email, membership.Role);
+        var orgDto = mapper.Map<OrganizationDto>(membership.Organization);
         return TypedResults.Ok(ApiResponse<AuthResponse>.Ok(new AuthResponse(token, userDto, orgDto)));
     }
 
@@ -120,6 +117,33 @@ public static class AuthEndpoints
 
     private static Ok<ApiResponse<string>> ResetAsync(ResetPasswordRequest request) =>
         TypedResults.Ok(ApiResponse<string>.Ok("Reset token accepted (mock)."));
+
+    private static async Task<Results<Ok<ApiResponse<string>>, BadRequest<ApiResponse<string>>, NotFound<ApiResponse<string>>>> ChangePasswordAsync(
+        ChangePasswordRequest request,
+        ICurrentUserContext currentUser,
+        NotificaPixDbContext context,
+        IPasswordHasher passwordHasher,
+        CancellationToken cancellationToken)
+    {
+        var membership = await context.Memberships
+            .Include(m => m.User)
+            .FirstOrDefaultAsync(m => m.UserId == currentUser.UserId, cancellationToken);
+
+        if (membership?.User is null)
+        {
+            return TypedResults.NotFound(ApiResponse<string>.Fail("Usuário não encontrado"));
+        }
+
+        if (!passwordHasher.Verify(membership.User.PasswordHash, request.CurrentPassword))
+        {
+            return TypedResults.BadRequest(ApiResponse<string>.Fail("Senha atual incorreta", "invalid_password"));
+        }
+
+        membership.User.PasswordHash = passwordHasher.Hash(request.NewPassword);
+        await context.SaveChangesAsync(cancellationToken);
+
+        return TypedResults.Ok(ApiResponse<string>.Ok("Senha atualizada com sucesso"));
+    }
 
     private static string Slugify(string value) =>
         string.Join('-', value.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));

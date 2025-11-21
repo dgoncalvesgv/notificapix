@@ -28,6 +28,7 @@ public class DataSeeder(NotificaPixDbContext context, IPasswordHasher passwordHa
 
         var user = new User
         {
+            Name = "Admin Demo",
             Email = "admin@demo.com",
             PasswordHash = passwordHasher.Hash("P@ssword123")
         };

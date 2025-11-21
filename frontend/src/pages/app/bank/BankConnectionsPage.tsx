@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { bankApi } from "../../../lib/api/client";
 import type { BankConnectionDto, BankIntegrationStatusDto } from "../../../lib/api/types";
 import { useToast } from "../../../context/ToastContext";
+import { useAuthStore } from "../../../store/auth";
 
 const apiBanks = [
   "Itaú Unibanco",
@@ -42,6 +43,7 @@ export const BankConnectionsPage = () => {
   const [savingItau, setSavingItau] = useState(false);
   const [itauStatus, setItauStatus] = useState<BankIntegrationStatusDto>();
   const [testingIntegrationId, setTestingIntegrationId] = useState<string | null>(null);
+  const organization = useAuthStore((state) => state.organization);
 
   const formatDateTime = (value?: string) => (value ? new Date(value).toLocaleString("pt-BR") : "—");
 
@@ -83,6 +85,11 @@ export const BankConnectionsPage = () => {
         ]
       : [];
 
+  const activeConnectionsCount = connections.filter((conn) => conn.status !== "Revoked").length;
+  const bankLimit = organization?.bankAccountsLimit ?? 0;
+  const totalConnections = activeConnectionsCount + manualIntegrations.length;
+  const reachedBankLimit = bankLimit === 0 || (bankLimit > 0 && totalConnections >= bankLimit);
+  const manualCreationBlocked = bankLimit === 0 || (bankLimit > 0 && totalConnections >= bankLimit);
   const loadConnections = () => {
     bankApi.list().then((response) => setConnections(response.data.data ?? []));
   };
@@ -93,9 +100,23 @@ export const BankConnectionsPage = () => {
   }, []);
 
   const connect = async () => {
-    const { data } = await bankApi.connect();
-    toast.push(`Redirecionar usuário para ${data.data}`, "info");
-    loadConnections();
+    if (reachedBankLimit) {
+      const message =
+        bankLimit === 0
+          ? "Seu plano atual não permite cadastrar contas bancárias. Faça upgrade para habilitar esta função."
+          : "Limite de contas bancárias atingido. Revogue uma conexão existente para adicionar outra.";
+      toast.push(message, "error");
+      return;
+    }
+    try {
+      const { data } = await bankApi.connect();
+      toast.push(`Redirecionar usuário para ${data.data}`, "info");
+      loadConnections();
+      loadReceivers();
+    } catch (error: any) {
+      const message = error?.response?.data?.error ?? "Não foi possível iniciar a conexão.";
+      toast.push(message, "error");
+    }
   };
 
   const fetchItauStatus = () => {
@@ -215,12 +236,21 @@ export const BankConnectionsPage = () => {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h1 className="text-2xl font-semibold">Conexões bancárias</h1>
           <div className="flex gap-2">
-            <button className="btn-primary" onClick={connect}>
+            <button className="btn-primary disabled:bg-slate-200 disabled:text-slate-500" onClick={connect} disabled={reachedBankLimit}>
               Conectar via Open Finance
             </button>
             <button
-              className="border border-slate-200 rounded px-4 py-2 text-sm font-semibold text-primary-600"
+              className="border border-slate-200 rounded px-4 py-2 text-sm font-semibold text-primary-600 disabled:text-slate-400 disabled:border-slate-200"
+              disabled={manualCreationBlocked}
               onClick={() => {
+                if (manualCreationBlocked) {
+                  const message =
+                    bankLimit === 0
+                      ? "Seu plano atual não permite cadastrar contas bancárias. Faça upgrade para habilitar esta função."
+                      : "Limite de contas bancárias atingido. Revogue uma conexão existente para adicionar outra.";
+                  toast.push(message, "error");
+                  return;
+                }
                 setModalStep(1);
                 setSelectedBank(apiBanks[0]);
                 setItauForm(defaultItauForm);
@@ -232,6 +262,13 @@ export const BankConnectionsPage = () => {
             </button>
           </div>
         </div>
+        {reachedBankLimit && (
+          <p className="text-xs text-slate-500">
+            {bankLimit === 0
+              ? "Seu plano atual não permite cadastrar contas bancárias. Faça upgrade para liberar integrações."
+              : `Limite de contas bancárias do plano: ${bankLimit}. Você já possui ${totalConnections} conexão(ões).`}
+          </p>
+        )}
         <div className="rounded-xl border border-slate-200 bg-white">
           <table className="w-full text-sm">
             <thead>

@@ -17,7 +17,10 @@ import type {
   BankIntegrationStatusDto,
   ItauIntegrationPayload,
   BankSyncResultDto,
-  StripeSubscriptionResponse
+  StripeSubscriptionResponse,
+  PlanInfoDto,
+  PixReceiversResponse,
+  PixStaticQrCodeDto
 } from "./types";
 
 const api = axios.create({
@@ -37,7 +40,9 @@ export const authApi = {
   login: (payload: { email: string; password: string }) => api.post<ApiResponse<AuthResponse>>("/auth/login", payload),
   register: (payload: { name: string; email: string; password: string; organizationName: string }) =>
     api.post<ApiResponse<AuthResponse>>("/auth/register", payload),
-  forgot: (payload: { email: string }) => api.post<ApiResponse<string>>("/auth/forgot", payload)
+  forgot: (payload: { email: string }) => api.post<ApiResponse<string>>("/auth/forgot", payload),
+  changePassword: (payload: { currentPassword: string; newPassword: string }) =>
+    api.post<ApiResponse<string>>("/auth/change-password", payload)
 };
 
 export const dashboardApi = {
@@ -68,11 +73,22 @@ export const teamApi = {
 
 export const billingApi = {
   checkout: (payload: { plan: string }) => api.post<ApiResponse<StripeSubscriptionResponse>>("/billing/checkout-session", payload),
-  portal: () => api.post<ApiResponse<BillingSessionResponse>>("/billing/portal")
+  portal: () => api.post<ApiResponse<BillingSessionResponse>>("/billing/portal"),
+  plans: () => api.get<ApiResponse<PlanInfoDto[]>>("/billing/plans")
 };
 
 export const orgApi = {
-  current: () => api.get<ApiResponse<OrganizationDto>>("/org/current")
+  current: () => api.get<ApiResponse<OrganizationDto>>("/org/current"),
+  update: (payload: { name: string; billingEmail: string }) => api.put<ApiResponse<OrganizationDto>>("/org/update", payload)
+};
+
+export const pixApi = {
+  listKeys: () => api.get<ApiResponse<PixReceiversResponse>>("/pix/keys"),
+  createKey: (payload: { label: string; keyType: string; keyValue: string }) => api.post<ApiResponse<PixReceiverDto>>("/pix/keys", payload),
+  selectKey: (payload: { pixKeyId: string }) => api.post<ApiResponse<string>>("/pix/keys/select", payload),
+  deleteKey: (pixKeyId: string) => api.delete<ApiResponse<string>>(`/pix/keys/${pixKeyId}`),
+  listQrCodes: () => api.get<ApiResponse<PixStaticQrCodeDto[]>>("/pix/qrcodes"),
+  createQrCode: (payload: { amount: number; pixKeyId?: string }) => api.post<ApiResponse<PixStaticQrCodeDto>>("/pix/qrcodes", payload)
 };
 
 export const bankApi = {

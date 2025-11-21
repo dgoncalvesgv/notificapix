@@ -12,16 +12,22 @@ const toLocalISOString = (date: Date) => {
 };
 
 export const TransactionsPage = () => {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const defaultFrom = toLocalISOString(startOfMonth).split("T")[0];
+  const defaultTo = toLocalISOString(endOfMonth).split("T")[0];
+
   const [items, setItems] = useState<PixTransactionDto[]>([]);
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [fromDate, setFromDate] = useState(defaultFrom);
+  const [toDate, setToDate] = useState(defaultTo);
   const [loading, setLoading] = useState(false);
   const [syncingBanks, setSyncingBanks] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
-    loadTransactions();
-  }, []);
+    loadTransactions({ from: defaultFrom, to: defaultTo });
+  }, [defaultFrom, defaultTo]);
 
   const loadTransactions = async (filters?: { from?: string; to?: string }) => {
     setLoading(true);
@@ -89,6 +95,24 @@ export const TransactionsPage = () => {
     }
   };
 
+  const averageAmount =
+    items.length > 0 ? items.reduce((sum, item) => sum + item.amount, 0) / items.length : 0;
+  const highestPayer = items.length
+    ? items.reduce((prev, current) => (current.amount > prev.amount ? current : prev))
+    : undefined;
+  const payerAggregates = items.reduce<Record<string, { total: number; count: number; name: string }>>(
+    (acc, item) => {
+      if (!acc[item.payerName]) {
+        acc[item.payerName] = { total: 0, count: 0, name: item.payerName };
+      }
+      acc[item.payerName].total += item.amount;
+      acc[item.payerName].count += 1;
+      return acc;
+    },
+    {}
+  );
+  const topPayerByTotal = Object.values(payerAggregates).sort((a, b) => b.total - a.total)[0];
+
   return (
     <div className="space-y-4">
       <header className="space-y-3">
@@ -139,13 +163,40 @@ export const TransactionsPage = () => {
           </div>
         </form>
       </header>
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs uppercase text-slate-500">Média de PIX</p>
+          <p className="text-2xl font-semibold text-slate-800">
+            {items.length ? currencyFormatter.format(averageAmount) : "—"}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Baseado nas transações carregadas ({items.length})
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs uppercase text-slate-500">Maior pagador</p>
+          <p className="text-lg font-semibold text-slate-800">{highestPayer?.payerName ?? "—"}</p>
+          <p className="text-sm text-slate-500">
+            {highestPayer ? currencyFormatter.format(highestPayer.amount) : "Sem registros"}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs uppercase text-slate-500">Cliente com maior volume</p>
+          <p className="text-lg font-semibold text-slate-800">{topPayerByTotal?.name ?? "—"}</p>
+          <p className="text-sm text-slate-500">
+            {topPayerByTotal
+              ? `${currencyFormatter.format(topPayerByTotal.total)} • ${topPayerByTotal.count} transações`
+              : "Sem registros"}
+          </p>
+        </div>
+      </section>
       <DataTable
         data={items}
         columns={[
-          { header: "Valor", accessor: (row) => currencyFormatter.format(row.amount) },
-          { header: "Pagador", accessor: (row) => row.payerName },
+          { header: "Valor", accessor: (row) => currencyFormatter.format(row.amount), sortKey: "amount" },
+          { header: "Pagador", accessor: (row) => row.payerName, sortKey: "payerName" },
           { header: "Descrição", accessor: (row) => row.description },
-          { header: "Data", accessor: (row) => new Date(row.occurredAt).toLocaleString("pt-BR") }
+          { header: "Data", accessor: (row) => new Date(row.occurredAt).toLocaleString("pt-BR"), sortKey: "occurredAt" }
         ]}
         emptyMessage={loading ? "Carregando..." : "Nenhuma transação encontrada"}
       />

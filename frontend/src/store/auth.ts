@@ -7,6 +7,7 @@ export type AuthState = {
   user?: UserDto;
   organization?: OrganizationDto;
   setSession: (payload: { token: string; user: UserDto; organization: OrganizationDto }) => void;
+  updateOrganization: (organization: OrganizationDto) => void;
   clear: () => void;
 };
 
@@ -20,6 +21,7 @@ export const useAuthStore = create<AuthState>()(
         localStorage.setItem("np_token", payload.token);
         set(payload);
       },
+      updateOrganization: (organization) => set({ organization }),
       clear: () => {
         localStorage.removeItem("np_token");
         set({ token: undefined, user: undefined, organization: undefined });
