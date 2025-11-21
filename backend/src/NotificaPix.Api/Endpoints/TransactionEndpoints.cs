@@ -68,6 +68,14 @@ public static class TransactionEndpoints
         {
             query = query.Where(t => t.PayerKey.Contains(request.PayerKey));
         }
+        if (!string.IsNullOrWhiteSpace(request.PayerName))
+        {
+            query = query.Where(t => t.PayerName.Contains(request.PayerName));
+        }
+        if (!string.IsNullOrWhiteSpace(request.Description))
+        {
+            query = query.Where(t => t.Description != null && t.Description.Contains(request.Description));
+        }
 
         var total = await query.LongCountAsync(cancellationToken);
         var items = await query

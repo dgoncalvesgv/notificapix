@@ -19,11 +19,13 @@ CREATE TABLE IF NOT EXISTS PixStaticQrCodes (
     OrganizationId CHAR(36) NOT NULL,
     PixKeyId CHAR(36) NOT NULL,
     Amount DECIMAL(18,2) NOT NULL,
+    Description VARCHAR(256) NOT NULL DEFAULT '',
     Payload TEXT NOT NULL,
     TxId VARCHAR(64) NOT NULL,
     PRIMARY KEY (Id),
     KEY IX_PixStaticQrCodes_Org (OrganizationId),
     KEY IX_PixStaticQrCodes_Key (PixKeyId),
+    KEY IX_PixStaticQrCodes_CreatedAt (CreatedAt),
     CONSTRAINT FK_PixStaticQrCodes_Org FOREIGN KEY (OrganizationId) REFERENCES Organizations (Id) ON DELETE CASCADE,
     CONSTRAINT FK_PixStaticQrCodes_Key FOREIGN KEY (PixKeyId) REFERENCES PixKeys (Id) ON DELETE RESTRICT
 );

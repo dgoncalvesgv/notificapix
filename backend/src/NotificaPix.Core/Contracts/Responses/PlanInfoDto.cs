@@ -8,4 +8,6 @@ public record PlanInfoDto(
     string PriceText,
     int MonthlyTransactions,
     int TeamMembersLimit,
-    int BankAccountsLimit);
+    int BankAccountsLimit,
+    int PixKeysLimit,
+    int PixQrCodesLimit);

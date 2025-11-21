@@ -23,6 +23,8 @@ public class PlanSetting
     public int MonthlyTransactions { get; set; }
     public int TeamMembersLimit { get; set; }
     public int BankAccountsLimit { get; set; }
+    public int PixKeysLimit { get; set; }
+    public int PixQrCodesLimit { get; set; }
     public string PriceText { get; set; } = string.Empty;
 
     public static PlanSetting CreateStarterDefaults() => new()
@@ -31,6 +33,8 @@ public class PlanSetting
         MonthlyTransactions = 30,
         TeamMembersLimit = 1,
         BankAccountsLimit = 1,
+        PixKeysLimit = 1,
+        PixQrCodesLimit = 20,
         PriceText = "R$ 0/mês"
     };
 
@@ -40,6 +44,8 @@ public class PlanSetting
         MonthlyTransactions = 1000,
         TeamMembersLimit = 0,
         BankAccountsLimit = 0,
+        PixKeysLimit = 0,
+        PixQrCodesLimit = 0,
         PriceText = "R$ 399/mês"
     };
 
@@ -49,6 +55,8 @@ public class PlanSetting
         MonthlyTransactions = int.MaxValue,
         TeamMembersLimit = 0,
         BankAccountsLimit = 0,
+        PixKeysLimit = 0,
+        PixQrCodesLimit = 0,
         PriceText = "Custom"
     };
 }

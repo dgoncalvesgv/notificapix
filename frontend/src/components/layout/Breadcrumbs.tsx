@@ -13,17 +13,14 @@ const breadcrumbMap: Record<string, BreadcrumbItem[]> = {
     { label: "Transações PIX" }
   ],
   "/app/alerts": [
-    { label: "Visão geral", to: "/app/overview" },
+    { label: "Configurações", to: "/app/settings" },
     { label: "Alertas" }
   ],
   "/app/bank-connections": [
-    { label: "Visão geral", to: "/app/overview" },
-    { label: "Instituições" }
+    { label: "Configurações", to: "/app/settings" },
+    { label: "Conexões bancárias" }
   ],
-  "/app/settings": [
-    { label: "Visão geral", to: "/app/overview" },
-    { label: "Configurações" }
-  ],
+  "/app/settings": [{ label: "Configurações" }],
   "/app/settings/profile": [
     { label: "Configurações", to: "/app/settings" },
     { label: "Dados do cadastro" }
@@ -36,8 +33,12 @@ const breadcrumbMap: Record<string, BreadcrumbItem[]> = {
     { label: "Configurações", to: "/app/settings" },
     { label: "Notificações" }
   ],
+  "/app/settings/pix-keys": [
+    { label: "Configurações", to: "/app/settings" },
+    { label: "Chaves Pix" }
+  ],
   "/app/team": [
-    { label: "Visão geral", to: "/app/overview" },
+    { label: "Configurações", to: "/app/settings" },
     { label: "Time" }
   ],
   "/app/billing": [
@@ -45,11 +46,11 @@ const breadcrumbMap: Record<string, BreadcrumbItem[]> = {
     { label: "Assinatura" }
   ],
   "/app/audit-logs": [
-    { label: "Visão geral", to: "/app/overview" },
+    { label: "Configurações", to: "/app/settings" },
     { label: "Audit Logs" }
   ],
   "/app/api-keys": [
-    { label: "Visão geral", to: "/app/overview" },
+    { label: "Configurações", to: "/app/settings" },
     { label: "API Keys" }
   ]
 };
@@ -94,20 +95,20 @@ export const Breadcrumbs = () => {
   }
 
   return (
-    <nav className="text-xs md:text-sm text-slate-500 mb-4" aria-label="Breadcrumb">
+    <nav className="text-xs md:text-sm text-slate-500 dark:text-slate-300 mb-4" aria-label="Breadcrumb">
       <ol className="flex flex-wrap items-center gap-1">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
           return (
             <li key={`${item.label}-${index}`} className="flex items-center gap-1">
               {item.to && !isLast ? (
-                <Link to={item.to} className="hover:text-primary-600 transition">
+                <Link to={item.to} className="hover:text-primary-600 dark:hover:text-primary-300 transition">
                   {item.label}
                 </Link>
               ) : (
-                <span className={isLast ? "text-slate-700 font-medium" : undefined}>{item.label}</span>
+                <span className={isLast ? "text-slate-700 dark:text-white font-medium" : undefined}>{item.label}</span>
               )}
-              {!isLast && <span className="text-slate-300">/</span>}
+              {!isLast && <span className="text-slate-300 dark:text-slate-500">/</span>}
             </li>
           );
         })}

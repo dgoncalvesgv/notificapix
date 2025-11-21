@@ -6,9 +6,36 @@ import type { OrganizationDto, PlanInfoDto } from "../../../lib/api/types";
 import { useToast } from "../../../context/ToastContext";
 
 const fallbackPlans: PlanInfoDto[] = [
-  { plan: "Starter", displayName: "Grátis", priceText: "R$ 0/mês", monthlyTransactions: 30, teamMembersLimit: 1, bankAccountsLimit: 1 },
-  { plan: "Pro", displayName: "Pro", priceText: "R$ 399/mês", monthlyTransactions: 1000, teamMembersLimit: 0, bankAccountsLimit: 0 },
-  { plan: "Business", displayName: "Business", priceText: "Custom", monthlyTransactions: 1000000, teamMembersLimit: 0, bankAccountsLimit: 0 }
+  {
+    plan: "Starter",
+    displayName: "Grátis",
+    priceText: "R$ 0/mês",
+    monthlyTransactions: 30,
+    teamMembersLimit: 1,
+    bankAccountsLimit: 1,
+    pixKeysLimit: 1,
+    pixQrCodesLimit: 20
+  },
+  {
+    plan: "Pro",
+    displayName: "Pro",
+    priceText: "R$ 399/mês",
+    monthlyTransactions: 1000,
+    teamMembersLimit: 0,
+    bankAccountsLimit: 0,
+    pixKeysLimit: 0,
+    pixQrCodesLimit: 0
+  },
+  {
+    plan: "Business",
+    displayName: "Business",
+    priceText: "Custom",
+    monthlyTransactions: 1000000,
+    teamMembersLimit: 0,
+    bankAccountsLimit: 0,
+    pixKeysLimit: 0,
+    pixQrCodesLimit: 0
+  }
 ];
 
 const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
@@ -89,14 +116,25 @@ export const BillingPage = () => {
       )}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {planList.map((plan) => (
-          <div key={plan.plan} className="border rounded-xl p-4 bg-white space-y-2">
-            <h3 className="font-semibold">{plan.displayName}</h3>
-            <p className="text-2xl">{plan.priceText}</p>
-            <p className="text-sm text-slate-500">
-              {plan.monthlyTransactions <= 0 || plan.monthlyTransactions >= 1_000_000
-                ? "Ilimitado"
-                : `${plan.monthlyTransactions} transações/mês`}
-            </p>
+          <div key={plan.plan} className="border rounded-xl p-4 bg-white dark:bg-slate-800 dark:border-slate-700 space-y-4">
+            <div>
+              <h3 className="font-semibold text-xl">{plan.displayName}</h3>
+              <p className="text-2xl mt-1">{plan.priceText}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-300">
+                {plan.plan === "Starter"
+                  ? "Comece a receber Pix com o essencial para testar o produto."
+                  : plan.plan === "Pro"
+                    ? "Automatize fluxos com limites altos e suporte prioritário."
+                    : "Plano sob medida para empresas com demandas críticas e SLA dedicado."}
+              </p>
+            </div>
+            <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-200">
+              <li>• {plan.monthlyTransactions <= 0 || plan.monthlyTransactions >= 1_000_000 ? "Transações ilimitadas" : `${plan.monthlyTransactions.toLocaleString("pt-BR")} transações/mês`}</li>
+              <li>• {plan.teamMembersLimit === 0 ? "Time ilimitado" : `${plan.teamMembersLimit} membro(s) do time`}</li>
+              <li>• {plan.bankAccountsLimit === 0 ? "Contas bancárias ilimitadas" : `${plan.bankAccountsLimit} conta(s) bancária(s)`}</li>
+              <li>• {plan.pixKeysLimit === 0 ? "Chaves Pix ilimitadas" : `${plan.pixKeysLimit} chave(s) Pix`}</li>
+              <li>• {plan.pixQrCodesLimit === 0 ? "QR Codes ilimitados" : `${plan.pixQrCodesLimit} QR Codes ativos`}</li>
+            </ul>
             <button
               disabled={organization?.plan === plan.plan || loadingPlan === plan.plan}
               className="btn-primary w-full disabled:bg-slate-200 disabled:text-slate-500"
@@ -106,14 +144,14 @@ export const BillingPage = () => {
                 ? "Preparando..."
                 : organization?.plan === plan.plan
                   ? "Atual"
-                  : "Selecionar"}
+                  : "Contratar"}
             </button>
           </div>
         ))}
       </div>
       {isModalOpen && clientSecret && stripePromise && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4 border border-slate-200 dark:border-slate-800">
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-semibold">Confirmar assinatura</h2>

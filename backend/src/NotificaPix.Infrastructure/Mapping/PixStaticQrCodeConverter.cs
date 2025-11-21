@@ -9,6 +9,13 @@ public class PixStaticQrCodeConverter : ITypeConverter<PixStaticQrCode, PixStati
     public PixStaticQrCodeDto Convert(PixStaticQrCode source, PixStaticQrCodeDto destination, ResolutionContext context)
     {
         var label = source.PixKey != null ? source.PixKey.Label : string.Empty;
-        return new PixStaticQrCodeDto(source.Id, source.Amount, source.Payload, source.TxId, label, source.CreatedAt);
+        return new PixStaticQrCodeDto(
+            source.Id,
+            source.Amount,
+            source.Description,
+            source.Payload,
+            source.TxId,
+            label,
+            source.CreatedAt);
     }
 }

@@ -96,7 +96,7 @@ export const OverviewPage = () => {
         />
       </section>
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:bg-slate-800 dark:border-slate-700">
           <h3 className="font-semibold mb-2">Transações do dia (por hora)</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -110,7 +110,7 @@ export const OverviewPage = () => {
             </ResponsiveContainer>
           </div>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:bg-slate-800 dark:border-slate-700">
           <h3 className="font-semibold mb-2">Transações do mês (por dia)</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useAuthStore } from "../../../store/auth";
 
 const settingsLinks = [
   {
@@ -35,6 +36,18 @@ const settingsLinks = [
     title: "API Keys",
     description: "Gerencie tokens de acesso para integrações externas.",
     to: "/app/api-keys"
+  },
+  {
+    title: "Time",
+    description: "Convide e gerencie membros com acesso ao NotificaPix.",
+    to: "/app/team",
+    adminOnly: true
+  },
+  {
+    title: "Conexões Bancárias",
+    description: "Configure integrações via Open Finance e API/Webhook.",
+    to: "/app/bank-connections",
+    adminOnly: true
   }
 ];
 
@@ -46,33 +59,35 @@ export const SettingsPage = () => {
         <p className="text-sm text-slate-500">Gerencie preferências e integrações avançadas.</p>
       </header>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {settingsLinks.map((link) => (
-          <Link
-            key={link.to}
-            to={link.to}
-            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-primary-200 hover:shadow-md transition"
-          >
-            <h3 className="text-lg font-semibold text-slate-800">{link.title}</h3>
-            <p className="text-sm text-slate-500 mt-1">{link.description}</p>
-            <span className="text-sm font-medium text-primary-600 mt-4 inline-flex items-center gap-1">
-              Acessar
-              <svg
-                className="h-4 w-4"
-                viewBox="0 0 20 20"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M7.5 5L12.5 10L7.5 15"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
-          </Link>
-        ))}
+        {settingsLinks
+          .filter((link) => (link.adminOnly ? useAuthStore.getState().user?.role === "OrgAdmin" : true))
+          .map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-primary-200 hover:shadow-md transition dark:bg-slate-800 dark:border-slate-700"
+            >
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-white">{link.title}</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-300 mt-1">{link.description}</p>
+              <span className="text-sm font-medium text-primary-600 mt-4 inline-flex items-center gap-1">
+                Acessar
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M7.5 5L12.5 10L7.5 15"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+            </Link>
+          ))}
       </div>
     </div>
   );

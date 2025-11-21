@@ -41,7 +41,7 @@ export const ApiKeysPage = () => {
         <input className="input" placeholder="Nome interno" {...register("name")} />
         <button className="btn-primary">Criar</button>
       </form>
-      <table className="w-full text-sm bg-white rounded-xl border">
+      <table className="w-full text-sm bg-white rounded-xl border dark:bg-slate-800 dark:border-slate-700">
         <thead>
           <tr className="text-left text-xs uppercase text-slate-500">
             <th className="px-4 py-2">Nome</th>

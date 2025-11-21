@@ -35,7 +35,7 @@ export const ChangePasswordPage = () => {
         <p className="text-sm text-slate-500">Atualize sua senha para manter sua conta protegida.</p>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4 dark:bg-slate-800 dark:border-slate-700">
         <label className="block space-y-1">
           <span className="text-sm font-medium text-slate-600">Senha atual</span>
           <input className="input" type="password" autoComplete="current-password" {...register("currentPassword", { required: true })} />

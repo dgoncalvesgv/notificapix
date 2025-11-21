@@ -29,6 +29,8 @@ public class OrganizationToDtoConverter : ITypeConverter<Organization, Organizat
             plan.DisplayName,
             plan.PriceText,
             plan.TeamMembersLimit,
-            plan.BankAccountsLimit);
+            plan.BankAccountsLimit,
+            plan.PixKeysLimit,
+            plan.PixQrCodesLimit);
     }
 }

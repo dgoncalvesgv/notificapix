@@ -103,10 +103,12 @@ public class NotificaPixDbContext(DbContextOptions<NotificaPixDbContext> options
         builder.Entity<PixStaticQrCode>(entity =>
         {
             entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.Description).HasMaxLength(256);
             entity.Property(x => x.Payload).HasColumnType("text");
             entity.Property(x => x.TxId).HasMaxLength(64);
             entity.HasIndex(x => x.OrganizationId);
             entity.HasIndex(x => x.PixKeyId);
+            entity.HasIndex(x => x.CreatedAt);
             entity.HasOne(x => x.Organization)
                 .WithMany()
                 .HasForeignKey(x => x.OrganizationId)

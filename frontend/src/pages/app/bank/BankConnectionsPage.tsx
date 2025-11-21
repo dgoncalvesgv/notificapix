@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { bankApi } from "../../../lib/api/client";
 import type { BankConnectionDto, BankIntegrationStatusDto } from "../../../lib/api/types";
 import { useToast } from "../../../context/ToastContext";
@@ -32,6 +33,26 @@ const defaultItauForm = {
 };
 
 const webhookUrl = import.meta.env.VITE_ITAU_WEBHOOK_URL ?? "http://localhost:5089/integrations/itau/webhook";
+
+const PlayIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+    <path d="M8 5v14l11-7z" />
+  </svg>
+);
+
+const PencilIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+    <path d="M17 3a2.828 2.828 0 1 1 4 4L7 21l-4 1 1-4Z" />
+    <path d="M15 5l4 4" />
+  </svg>
+);
+
+const SpinnerIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-4 w-4 animate-spin" fill="none">
+    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.3" strokeWidth="2" />
+    <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
 
 export const BankConnectionsPage = () => {
   const [connections, setConnections] = useState<BankConnectionDto[]>([]);
@@ -263,13 +284,16 @@ export const BankConnectionsPage = () => {
           </div>
         </div>
         {reachedBankLimit && (
-          <p className="text-xs text-slate-500">
+          <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-xs text-amber-800">
             {bankLimit === 0
-              ? "Seu plano atual não permite cadastrar contas bancárias. Faça upgrade para liberar integrações."
-              : `Limite de contas bancárias do plano: ${bankLimit}. Você já possui ${totalConnections} conexão(ões).`}
-          </p>
+              ? "Seu plano atual não permite cadastrar contas bancárias."
+              : `Limite de contas bancárias do plano (${bankLimit}) atingido. `}
+            <Link to="/app/billing" className="font-semibold text-primary-700 underline">
+              Acesse Plano para fazer upgrade.
+            </Link>
+          </div>
         )}
-        <div className="rounded-xl border border-slate-200 bg-white">
+        <div className="rounded-xl border border-slate-200 bg-white dark:bg-slate-800 dark:border-slate-700">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-slate-500 uppercase text-xs">
@@ -307,7 +331,7 @@ export const BankConnectionsPage = () => {
             </tbody>
           </table>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white">
+        <div className="rounded-xl border border-slate-200 bg-white dark:bg-slate-800 dark:border-slate-700">
           <div className="px-4 py-3 border-b border-slate-100">
             <h2 className="font-semibold">Integrações via API/Webhook</h2>
             <p className="text-sm text-slate-500">Veja as conexões criadas manualmente com certificados e webhooks.</p>
@@ -325,7 +349,7 @@ export const BankConnectionsPage = () => {
                   <th>URL do serviço</th>
                   <th>ID da conta</th>
                   <th>Data do cadastro</th>
-                  <th className="text-right">Ações</th>
+                  <th className="text-right pr-5">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -348,20 +372,28 @@ export const BankConnectionsPage = () => {
                         {integration.accountIdentifier ?? "—"}
                       </td>
                       <td>{formatDateTime(integration.createdAt)}</td>
-                      <td className="text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="text-right pr-5">
+                        <div className="inline-flex items-center gap-3">
                           <button
-                            className="text-sm font-semibold text-slate-600 border border-slate-200 rounded px-2 py-1 disabled:opacity-50"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-primary-600 hover:bg-primary-50 disabled:opacity-50 disabled:hover:bg-transparent"
                             disabled={testingIntegrationId === integration.id}
                             onClick={() => handleTestIntegration(integration.status)}
+                            title={
+                              testingIntegrationId === integration.id ? "Testando integração..." : "Testar integração"
+                            }
                           >
-                            {testingIntegrationId === integration.id ? "Testando..." : "Testar"}
+                            {testingIntegrationId === integration.id ? <SpinnerIcon /> : <PlayIcon />}
+                            <span className="sr-only">
+                              {testingIntegrationId === integration.id ? "Testando integração" : "Testar integração"}
+                            </span>
                           </button>
                           <button
-                            className="text-sm font-semibold text-primary-600 hover:underline"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
                             onClick={() => handleEditIntegration(integration.status)}
+                            title="Editar integração"
                           >
-                            Editar
+                            <PencilIcon />
+                            <span className="sr-only">Editar integração</span>
                           </button>
                         </div>
                       </td>
@@ -375,7 +407,7 @@ export const BankConnectionsPage = () => {
       </div>
       {showApiModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-md p-6 border border-slate-200 dark:border-slate-700">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">
                 {modalStep === 1 ? "Selecionar banco" : "Integração Itaú"}
@@ -586,7 +618,7 @@ export const BankConnectionsPage = () => {
                   <div className="text-sm flex flex-col gap-2 bg-slate-50 border border-slate-200 rounded p-3">
                     <span>URL do Webhook (para colar no portal Itaú):</span>
                     <div className="flex items-center gap-2">
-                      <code className="bg-white border border-slate-200 rounded px-2 py-1 text-xs flex-1 break-all">
+                      <code className="bg-white border border-slate-200 rounded px-2 py-1 text-xs flex-1 break-all dark:bg-slate-900 dark:border-slate-700">
                         {webhookUrl}
                       </code>
                       <button

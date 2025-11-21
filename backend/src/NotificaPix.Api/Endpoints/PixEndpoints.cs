@@ -1,11 +1,14 @@
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using AutoMapper;
 using NotificaPix.Core.Abstractions.Security;
+using NotificaPix.Core.Abstractions.Services;
 using NotificaPix.Core.Contracts.Common;
 using NotificaPix.Core.Contracts.Requests;
 using NotificaPix.Core.Contracts.Responses;
@@ -25,6 +28,7 @@ public static class PixEndpoints
         group.MapDelete("/keys/{pixKeyId:guid}", DeletePixKeyAsync);
         group.MapGet("/qrcodes", ListQrCodesAsync);
         group.MapPost("/qrcodes", CreateQrCodeAsync);
+        group.MapDelete("/qrcodes/{qrCodeId:guid}", DeleteQrCodeAsync);
         return app;
     }
 
@@ -56,11 +60,23 @@ public static class PixEndpoints
         CreatePixKeyRequest request,
         ICurrentUserContext currentUser,
         NotificaPixDbContext context,
+        IPlanSettingsProvider planSettingsProvider,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Label) || string.IsNullOrWhiteSpace(request.KeyType) || string.IsNullOrWhiteSpace(request.KeyValue))
         {
             return TypedResults.BadRequest(ApiResponse<string>.Fail("Preencha todos os campos da chave Pix."));
+        }
+
+        var organization = await context.Organizations.FirstAsync(o => o.Id == currentUser.OrganizationId, cancellationToken);
+        var planSettings = planSettingsProvider.Get(organization.Plan);
+        if (planSettings.PixKeysLimit > 0)
+        {
+            var totalKeys = await context.PixKeys.CountAsync(k => k.OrganizationId == organization.Id, cancellationToken);
+            if (totalKeys >= planSettings.PixKeysLimit)
+            {
+                return TypedResults.BadRequest(ApiResponse<string>.Fail("Limite de chaves Pix atingido para o seu plano."));
+            }
         }
 
         var pixKey = new PixKey
@@ -73,7 +89,6 @@ public static class PixEndpoints
         context.PixKeys.Add(pixKey);
         await context.SaveChangesAsync(cancellationToken);
 
-        var organization = await context.Organizations.FirstAsync(o => o.Id == currentUser.OrganizationId, cancellationToken);
         var dto = new PixReceiverDto(pixKey.Id, pixKey.Label, pixKey.KeyType, pixKey.KeyValue, organization.DefaultPixKeyId == pixKey.Id);
         return TypedResults.Ok(ApiResponse<PixReceiverDto>.Ok(dto));
     }
@@ -123,16 +138,38 @@ public static class PixEndpoints
     }
 
     private static async Task<Ok<ApiResponse<IEnumerable<PixStaticQrCodeDto>>>> ListQrCodesAsync(
+        [AsParameters] PixQrCodeQuery query,
         ICurrentUserContext currentUser,
         NotificaPixDbContext context,
         IMapper mapper,
         CancellationToken cancellationToken)
     {
-        var qrCodes = await context.PixStaticQrCodes
+        var qrCodesQuery = context.PixStaticQrCodes
             .Include(q => q.PixKey)
             .Where(q => q.OrganizationId == currentUser.OrganizationId)
-            .OrderByDescending(q => q.CreatedAt)
-            .ToListAsync(cancellationToken);
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(query.Description))
+        {
+            var descriptionFilter = query.Description.Trim();
+            qrCodesQuery = qrCodesQuery.Where(q => EF.Functions.Like(q.Description, $"%{descriptionFilter}%"));
+        }
+
+        if (query.CreatedFrom.HasValue)
+        {
+            var fromDate = query.CreatedFrom.Value.ToDateTime(TimeOnly.MinValue);
+            qrCodesQuery = qrCodesQuery.Where(q => q.CreatedAt >= fromDate);
+        }
+
+        if (query.CreatedTo.HasValue)
+        {
+            var toDate = query.CreatedTo.Value.ToDateTime(TimeOnly.MaxValue);
+            qrCodesQuery = qrCodesQuery.Where(q => q.CreatedAt <= toDate);
+        }
+
+        qrCodesQuery = ApplySorting(qrCodesQuery, query.SortBy, query.SortDirection);
+
+        var qrCodes = await qrCodesQuery.ToListAsync(cancellationToken);
         var dtos = mapper.Map<IEnumerable<PixStaticQrCodeDto>>(qrCodes);
         return TypedResults.Ok(ApiResponse<IEnumerable<PixStaticQrCodeDto>>.Ok(dtos));
     }
@@ -141,6 +178,7 @@ public static class PixEndpoints
         CreatePixStaticQrRequest request,
         ICurrentUserContext currentUser,
         NotificaPixDbContext context,
+        IPlanSettingsProvider planSettingsProvider,
         IMapper mapper,
         CancellationToken cancellationToken)
     {
@@ -150,6 +188,16 @@ public static class PixEndpoints
         }
 
         var organization = await context.Organizations.FirstAsync(o => o.Id == currentUser.OrganizationId, cancellationToken);
+        var planSettings = planSettingsProvider.Get(organization.Plan);
+        if (planSettings.PixQrCodesLimit > 0)
+        {
+            var totalQrCodes = await context.PixStaticQrCodes.CountAsync(q => q.OrganizationId == organization.Id, cancellationToken);
+            if (totalQrCodes >= planSettings.PixQrCodesLimit)
+            {
+                return TypedResults.BadRequest(ApiResponse<string>.Fail("Limite de QR Codes atingido para o seu plano."));
+            }
+        }
+
         var pixKeyId = request.PixKeyId ?? organization.DefaultPixKeyId;
         if (pixKeyId is null)
         {
@@ -169,6 +217,7 @@ public static class PixEndpoints
             OrganizationId = organization.Id,
             PixKeyId = pixKey.Id,
             Amount = request.Amount,
+            Description = request.Description?.Trim() ?? string.Empty,
             Payload = payload,
             TxId = txId
         };
@@ -178,6 +227,44 @@ public static class PixEndpoints
 
         var dto = mapper.Map<PixStaticQrCodeDto>(qrCode);
         return TypedResults.Ok(ApiResponse<PixStaticQrCodeDto>.Ok(dto));
+    }
+
+    private static async Task<Results<Ok<ApiResponse<string>>, NotFound<ApiResponse<string>>>> DeleteQrCodeAsync(
+        Guid qrCodeId,
+        ICurrentUserContext currentUser,
+        NotificaPixDbContext context,
+        CancellationToken cancellationToken)
+    {
+        var qrCode = await context.PixStaticQrCodes
+            .FirstOrDefaultAsync(q => q.Id == qrCodeId && q.OrganizationId == currentUser.OrganizationId, cancellationToken);
+
+        if (qrCode is null)
+        {
+            return TypedResults.NotFound(ApiResponse<string>.Fail("QR code não encontrado."));
+        }
+
+        context.PixStaticQrCodes.Remove(qrCode);
+        await context.SaveChangesAsync(cancellationToken);
+        return TypedResults.Ok(ApiResponse<string>.Ok("QR code removido."));
+    }
+
+    private static IQueryable<PixStaticQrCode> ApplySorting(IQueryable<PixStaticQrCode> query, string? sortBy, string? sortDirection)
+    {
+        var sort = (sortBy ?? string.Empty).ToLowerInvariant();
+        var direction = sortDirection?.Equals("asc", StringComparison.OrdinalIgnoreCase) == true ? "asc" : "desc";
+
+        return sort switch
+        {
+            "description" => direction == "asc"
+                ? query.OrderBy(q => q.Description).ThenByDescending(q => q.CreatedAt)
+                : query.OrderByDescending(q => q.Description).ThenByDescending(q => q.CreatedAt),
+            "receiver" => direction == "asc"
+                ? query.OrderBy(q => q.PixKey!.Label).ThenByDescending(q => q.CreatedAt)
+                : query.OrderByDescending(q => q.PixKey!.Label).ThenByDescending(q => q.CreatedAt),
+            _ => direction == "asc"
+                ? query.OrderBy(q => q.CreatedAt)
+                : query.OrderByDescending(q => q.CreatedAt)
+        };
     }
 
     private static string BuildStaticPayload(string pixKey, decimal amount, string txId, string organizationName)

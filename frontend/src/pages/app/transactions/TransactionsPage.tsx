@@ -4,6 +4,22 @@ import type { PixTransactionDto } from "../../../lib/api/types";
 import { DataTable } from "../../../components/DataTable";
 import { useToast } from "../../../context/ToastContext";
 
+const ExcelIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M15 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V7z" />
+    <path d="M15 2v5h5" />
+    <path d="m9 10 6 6" />
+    <path d="m15 10-6 6" />
+  </svg>
+);
+
+const RefreshIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12a9 9 0 1 1-3-6.7" />
+    <path d="M21 3v6h-6" />
+  </svg>
+);
+
 const currencyFormatter = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const toLocalISOString = (date: Date) => {
   const offset = date.getTimezoneOffset();
@@ -23,18 +39,22 @@ export const TransactionsPage = () => {
   const [toDate, setToDate] = useState(defaultTo);
   const [loading, setLoading] = useState(false);
   const [syncingBanks, setSyncingBanks] = useState(false);
+  const [payerFilter, setPayerFilter] = useState("");
+  const [descriptionFilter, setDescriptionFilter] = useState("");
   const toast = useToast();
 
   useEffect(() => {
     loadTransactions({ from: defaultFrom, to: defaultTo });
   }, [defaultFrom, defaultTo]);
 
-  const loadTransactions = async (filters?: { from?: string; to?: string }) => {
+  const loadTransactions = async (filters?: { from?: string; to?: string; payer?: string; description?: string }) => {
     setLoading(true);
     try {
       const payload: Record<string, unknown> = { page: 1, pageSize: 50 };
       if (filters?.from) payload.from = filters.from;
       if (filters?.to) payload.to = filters.to;
+      if (filters?.payer) payload.payerName = filters.payer;
+      if (filters?.description) payload.description = filters.description;
       const response = await transactionsApi.list(payload);
       setItems(response.data.data?.items ?? []);
     } finally {
@@ -44,7 +64,7 @@ export const TransactionsPage = () => {
 
   const handleFilter = (event: React.FormEvent) => {
     event.preventDefault();
-    const filters: { from?: string; to?: string } = {};
+    const filters: { from?: string; to?: string; payer?: string; description?: string } = {};
     if (fromDate) {
       const start = new Date(`${fromDate}T00:00:00`);
       filters.from = toLocalISOString(start).split("T")[0];
@@ -52,6 +72,12 @@ export const TransactionsPage = () => {
     if (toDate) {
       const end = new Date(`${toDate}T23:59:59`);
       filters.to = toLocalISOString(end).split("T")[0];
+    }
+    if (payerFilter.trim()) {
+      filters.payer = payerFilter.trim();
+    }
+    if (descriptionFilter.trim()) {
+      filters.description = descriptionFilter.trim();
     }
     loadTransactions(filters);
   };
@@ -122,68 +148,85 @@ export const TransactionsPage = () => {
             <button
               type="button"
               onClick={handleSyncBanks}
-              className="border border-slate-200 rounded px-4 py-2 text-sm font-semibold text-primary-600 disabled:opacity-60"
+              className="border border-slate-200 rounded px-4 py-2 text-sm font-semibold text-primary-600 disabled:opacity-60 flex items-center gap-2"
               disabled={syncingBanks}
+              title="Sincronizar integrações bancárias"
             >
+              <RefreshIcon />
               {syncingBanks ? "Sincronizando..." : "Baixar integrações concluídas"}
             </button>
           </div>
         </div>
-        <form onSubmit={handleFilter} className="flex flex-wrap items-end gap-3 text-sm">
+        <form
+          onSubmit={handleFilter}
+          className="grid gap-3 text-sm md:grid-cols-[150px_150px_minmax(0,1fr)_minmax(0,1fr)_max-content]"
+        >
           <label className="flex flex-col">
             <span className="text-xs text-slate-500 mb-1">De</span>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(event) => setFromDate(event.target.value)}
-              className="border border-slate-200 rounded px-3 py-2"
-            />
+            <input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} className="input" />
           </label>
           <label className="flex flex-col">
             <span className="text-xs text-slate-500 mb-1">Até</span>
+            <input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} className="input" />
+          </label>
+          <label className="flex flex-col">
+            <span className="text-xs text-slate-500 mb-1">Pagador</span>
             <input
-              type="date"
-              value={toDate}
-              onChange={(event) => setToDate(event.target.value)}
-              className="border border-slate-200 rounded px-3 py-2"
+              type="text"
+              value={payerFilter}
+              onChange={(event) => setPayerFilter(event.target.value)}
+              className="input"
+              placeholder="Nome do pagador"
             />
           </label>
-          <div className="flex gap-2">
-            <button type="submit" className="btn-primary" disabled={loading}>
+          <label className="flex flex-col">
+            <span className="text-xs text-slate-500 mb-1">Descrição</span>
+            <input
+              type="text"
+              value={descriptionFilter}
+              onChange={(event) => setDescriptionFilter(event.target.value)}
+              className="input"
+              placeholder="Descrição do Pix"
+            />
+          </label>
+          <div className="flex gap-2 items-end justify-end">
+            <button type="submit" className="btn-primary whitespace-nowrap" disabled={loading}>
               {loading ? "Filtrando..." : "Filtrar"}
             </button>
             <button
               type="button"
               onClick={handleExport}
-              className="border border-slate-200 rounded px-3 py-2 text-sm font-semibold text-primary-600"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-primary-600 disabled:opacity-50"
               disabled={!items.length}
+              title="Exportar Excel"
             >
-              Exportar Excel
+              <ExcelIcon />
+              <span>Exportar Excel</span>
             </button>
           </div>
         </form>
       </header>
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase text-slate-500">Média de PIX</p>
-          <p className="text-2xl font-semibold text-slate-800">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:bg-slate-800/80 dark:border-slate-600">
+          <p className="text-xs uppercase text-slate-500 dark:text-slate-200">Média de PIX</p>
+          <p className="text-2xl font-semibold text-slate-800 dark:text-white">
             {items.length ? currencyFormatter.format(averageAmount) : "—"}
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-200 mt-1">
             Baseado nas transações carregadas ({items.length})
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase text-slate-500">Maior pagador</p>
-          <p className="text-lg font-semibold text-slate-800">{highestPayer?.payerName ?? "—"}</p>
-          <p className="text-sm text-slate-500">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:bg-slate-800/80 dark:border-slate-600">
+          <p className="text-xs uppercase text-slate-500 dark:text-slate-200">Maior pagador</p>
+          <p className="text-lg font-semibold text-slate-800 dark:text-white">{highestPayer?.payerName ?? "—"}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-200">
             {highestPayer ? currencyFormatter.format(highestPayer.amount) : "Sem registros"}
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase text-slate-500">Cliente com maior volume</p>
-          <p className="text-lg font-semibold text-slate-800">{topPayerByTotal?.name ?? "—"}</p>
-          <p className="text-sm text-slate-500">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:bg-slate-800/80 dark:border-slate-600">
+          <p className="text-xs uppercase text-slate-500 dark:text-slate-200">Cliente com maior volume</p>
+          <p className="text-lg font-semibold text-slate-800 dark:text-white">{topPayerByTotal?.name ?? "—"}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-200">
             {topPayerByTotal
               ? `${currencyFormatter.format(topPayerByTotal.total)} • ${topPayerByTotal.count} transações`
               : "Sem registros"}

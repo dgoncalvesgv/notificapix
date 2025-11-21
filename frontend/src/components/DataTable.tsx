@@ -17,7 +17,7 @@ export const DataTable = <T,>({ data, columns, emptyMessage = "Sem dados" }: Dat
   const [sortAsc, setSortAsc] = useState(true);
 
   if (!data.length) {
-    return <p className="text-sm text-slate-500">{emptyMessage}</p>;
+    return <p className="text-sm text-slate-500 dark:text-slate-300">{emptyMessage}</p>;
   }
 
   const sortedData = [...data].sort((a, b) => {
@@ -47,14 +47,18 @@ export const DataTable = <T,>({ data, columns, emptyMessage = "Sem dados" }: Dat
   };
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
       <table className="min-w-full text-sm">
         <thead>
           <tr>
             {columns.map((column) => (
               <th
                 key={column.header}
-                className={`text-left font-semibold px-4 py-2 ${column.sortKey ? "text-primary-600 cursor-pointer select-none" : "text-slate-500"}`}
+                className={`text-left font-semibold px-4 py-2 ${
+                  column.sortKey
+                    ? "text-primary-600 cursor-pointer select-none"
+                    : "text-slate-500 dark:text-slate-300"
+                }`}
                 onClick={() => column.sortKey && handleSort(column)}
               >
                 {column.header}
@@ -69,7 +73,9 @@ export const DataTable = <T,>({ data, columns, emptyMessage = "Sem dados" }: Dat
           {sortedData.map((row, index) => (
             <tr
               key={index}
-              className={`border-t border-slate-100 ${index % 2 === 0 ? "bg-white" : "bg-slate-50"}`}
+              className={`border-t border-slate-100 dark:border-slate-800 ${
+                index % 2 === 0 ? "bg-white dark:bg-slate-800/70" : "bg-slate-50 dark:bg-slate-900/60"
+              }`}
             >
               {columns.map((column) => (
                 <td key={column.header} className="px-4 py-2">

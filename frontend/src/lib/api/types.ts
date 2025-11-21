@@ -30,6 +30,8 @@ export type OrganizationDto = {
   planPriceText: string;
   teamMembersLimit: number;
   bankAccountsLimit: number;
+  pixKeysLimit: number;
+  pixQrCodesLimit: number;
 };
 
 export type PixTransactionDto = {
@@ -111,6 +113,8 @@ export type PlanInfoDto = {
   monthlyTransactions: number;
   teamMembersLimit: number;
   bankAccountsLimit: number;
+  pixKeysLimit: number;
+  pixQrCodesLimit: number;
 };
 
 export type PixReceiverDto = {
@@ -129,6 +133,7 @@ export type PixReceiversResponse = {
 export type PixStaticQrCodeDto = {
   id: string;
   amount: number;
+  description: string;
   payload: string;
   txId: string;
   receiverLabel: string;

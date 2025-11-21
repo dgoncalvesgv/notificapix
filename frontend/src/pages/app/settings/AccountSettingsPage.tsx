@@ -63,7 +63,7 @@ export const AccountSettingsPage = () => {
         <p className="text-sm text-slate-500">Atualize o nome exibido e o e-mail utilizado para faturamento e notificações.</p>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4 dark:bg-slate-800 dark:border-slate-700">
         <label className="block space-y-1">
           <span className="text-sm font-medium text-slate-600">Nome da organização</span>
           <input className="input" {...register("name")} placeholder="Minha Empresa LTDA" />

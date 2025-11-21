@@ -13,4 +13,6 @@ public record OrganizationDto(
     string PlanDisplayName,
     string PlanPriceText,
     int TeamMembersLimit,
-    int BankAccountsLimit);
+    int BankAccountsLimit,
+    int PixKeysLimit,
+    int PixQrCodesLimit);

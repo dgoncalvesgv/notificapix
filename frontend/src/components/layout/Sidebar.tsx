@@ -1,13 +1,11 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import { useAuthStore } from "../../store/auth";
 
 const links = [
   { to: "/app/overview", label: "Overview", icon: "dashboard" },
   { to: "/app/transactions", label: "Transações", icon: "transactions" },
-  { to: "/app/bank-connections", label: "Conexões Bancárias", icon: "bank", admin: true },
-  { to: "/app/pix/qr-codes", label: "Gerar QR Code de PIX", icon: "qr", admin: true },
-  { to: "/app/team", label: "Time", icon: "team", admin: true },
-  { to: "/app/billing", label: "Billing", icon: "billing", admin: true }
+  { to: "/app/pix/qr-codes", label: "Gerar QR Code de PIX", icon: "qr", admin: true }
 ];
 
 type SidebarProps = {
@@ -16,12 +14,15 @@ type SidebarProps = {
 
 export const Sidebar = ({ role = "OrgMember" }: SidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
+  const organization = useAuthStore((state) => state.organization);
+  const orgName = organization?.name ?? "NotificaPix";
+  const shortName = orgName.split(" ")[0];
   return (
     <aside
       className={`${collapsed ? "w-20" : "w-64"} bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-screen sticky top-0 transition-all`}
     >
       <div className="px-4 py-4 flex items-center justify-between">
-        <span className="text-lg font-semibold text-primary-600">{collapsed ? "NP" : "NotificaPix"}</span>
+        <span className="text-lg font-semibold text-primary-600">{collapsed ? shortName.slice(0, 2).toUpperCase() : shortName}</span>
         <button
           className="text-slate-500 hover:text-slate-700"
           onClick={() => setCollapsed((prev) => !prev)}
@@ -46,8 +47,10 @@ export const Sidebar = ({ role = "OrgMember" }: SidebarProps) => {
               key={link.to}
               to={link.to}
               className={({ isActive }) =>
-                `px-4 py-2 rounded-md text-sm font-medium flex items-center gap-3 ${
-                  isActive ? "bg-primary-50 text-primary-600" : "text-slate-600 hover:bg-slate-100"
+                `px-4 py-2 rounded-md text-sm font-medium flex items-center gap-3 transition ${
+                  isActive
+                    ? "bg-primary-50 text-primary-600"
+                    : "text-slate-600 hover:bg-primary-50/40 hover:text-primary-600 dark:text-slate-300 dark:hover:bg-primary-600/10 dark:hover:text-primary-300"
                 }`
               }
             >

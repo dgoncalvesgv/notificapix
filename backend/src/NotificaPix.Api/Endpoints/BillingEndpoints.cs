@@ -31,7 +31,9 @@ public static class BillingEndpoints
                 t.Settings.PriceText,
                 t.Settings.MonthlyTransactions,
                 t.Settings.TeamMembersLimit,
-                t.Settings.BankAccountsLimit))
+                t.Settings.BankAccountsLimit,
+                t.Settings.PixKeysLimit,
+                t.Settings.PixQrCodesLimit))
             .ToList();
 
         return TypedResults.Ok(ApiResponse<IEnumerable<PlanInfoDto>>.Ok(plans));

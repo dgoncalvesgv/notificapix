@@ -9,5 +9,7 @@ public record ListTransactionsRequest(
     decimal? MaxAmount,
     string? TxId,
     string? PayerKey,
+    string? PayerName,
+    string? Description,
     int Page = 1,
     int PageSize = 20) : PagedRequest(Page, PageSize);

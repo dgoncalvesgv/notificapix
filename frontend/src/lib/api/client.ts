@@ -87,8 +87,11 @@ export const pixApi = {
   createKey: (payload: { label: string; keyType: string; keyValue: string }) => api.post<ApiResponse<PixReceiverDto>>("/pix/keys", payload),
   selectKey: (payload: { pixKeyId: string }) => api.post<ApiResponse<string>>("/pix/keys/select", payload),
   deleteKey: (pixKeyId: string) => api.delete<ApiResponse<string>>(`/pix/keys/${pixKeyId}`),
-  listQrCodes: () => api.get<ApiResponse<PixStaticQrCodeDto[]>>("/pix/qrcodes"),
-  createQrCode: (payload: { amount: number; pixKeyId?: string }) => api.post<ApiResponse<PixStaticQrCodeDto>>("/pix/qrcodes", payload)
+  listQrCodes: (params?: { description?: string; createdFrom?: string; createdTo?: string; sortBy?: string; sortDirection?: string }) =>
+    api.get<ApiResponse<PixStaticQrCodeDto[]>>("/pix/qrcodes", { params }),
+  createQrCode: (payload: { amount: number; pixKeyId?: string; description?: string }) =>
+    api.post<ApiResponse<PixStaticQrCodeDto>>("/pix/qrcodes", payload),
+  deleteQrCode: (qrCodeId: string) => api.delete<ApiResponse<string>>(`/pix/qrcodes/${qrCodeId}`)
 };
 
 export const bankApi = {
